@@ -467,14 +467,15 @@ void CPU::xor8(uint8_t value) {
 }
 
 void CPU::bit(int index, int pos) {
-  bool val = (*reg8_pointers[index] & (1 << pos)) != 0;
+  bool val = (*reg8_pointers[index] & (1 << pos)) == 0;
   set_flag(5, 1);
   set_flag(6, 0);
   set_flag(7, val);
 }
 
 void CPU::bit(int pos) {
-  bool val = (*reg16_pointers[2] & (1 << pos)) != 0;
+
+  bool val = (ram.readByte(reg.hl) & (1 << pos)) == 0;
   set_flag(5, 1);
   set_flag(6, 0);
   set_flag(7, val);
@@ -499,5 +500,230 @@ void CPU::res(int index, int pos) {
 void CPU::res(int pos) {
   uint8_t value = ram.readByte(reg.hl);
   value = (value & (~(1 << pos)));
+  ram.writeByte(reg.hl, value);
+}
+
+void CPU::rl8(int index) {
+  uint8_t value = *reg8_pointers[index];
+
+  bool c = value >> 7;
+  value = (value << 1) | get_flag(4);
+
+  set_flag(4, c);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, value == 0);
+
+  *reg8_pointers[index] = value;
+}
+
+void CPU::rl8() {
+  uint8_t value = ram.readByte(reg.hl);
+
+  bool C = value >> 7;
+  value = (value << 1) | get_flag(4);
+
+  set_flag(4, C);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, value == 0);
+
+  ram.writeByte(reg.hl, value);
+}
+void CPU::rlc8(int index) {
+  uint8_t value = *reg8_pointers[index];
+
+  bool C = value >> 7;
+  value = (value << 1) | C;
+
+  set_flag(4, C);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, value == 0);
+
+  *reg8_pointers[index] = value;
+}
+
+void CPU::rlc8() {
+  uint8_t value = ram.readByte(reg.hl);
+
+  bool C = value >> 7;
+  value = (value << 1) | C;
+
+  set_flag(4, C);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, value == 0);
+
+  ram.writeByte(reg.hl, value);
+}
+
+void CPU::rr8(int index) {
+
+  uint8_t value = *reg8_pointers[index];
+
+  bool c = value & 0x1;
+  value = (value >> 1) | (get_flag(4) << 7);
+
+  set_flag(4, c);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, value == 0);
+
+  *reg8_pointers[index] = value;
+}
+void CPU::rr8() {
+
+  uint8_t value = ram.readByte(reg.hl);
+
+  bool c = value & 0x1;
+  value = (value >> 1) | (get_flag(4) << 7);
+
+  set_flag(4, c);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, value == 0);
+
+  ram.writeByte(reg.hl, value);
+}
+
+void CPU::rrc8(int index) {
+  uint8_t value = *reg8_pointers[index];
+
+  bool c = value & 0x1;
+  value = (value >> 1) | (c << 7);
+
+  set_flag(4, c);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, value == 0);
+
+  *reg8_pointers[index] = value;
+}
+
+void CPU::rrc8() {
+  uint8_t value = ram.readByte(reg.hl);
+
+  bool c = value & 0x1;
+  value = (value >> 1) | (c << 7);
+
+  set_flag(4, c);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, value == 0);
+
+  ram.writeByte(reg.hl, value);
+}
+
+void CPU::sla8(int index) {
+  uint8_t value = *reg8_pointers[index];
+
+  bool C = value >> 7;
+
+  value = value << 1;
+
+  set_flag(4, C);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, value == 0);
+  *reg8_pointers[index] = value;
+}
+
+void CPU::sla8() {
+  uint8_t value = ram.readByte(reg.hl);
+
+  bool C = value >> 7;
+
+  value = value << 1;
+
+  set_flag(4, C);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, value == 0);
+
+  ram.writeByte(reg.hl, value);
+}
+
+void CPU::sra8(int index) {
+  uint8_t value = *reg8_pointers[index];
+
+  bool C = value & 0x1;
+
+  value = (value & 0x80) | (value >> 1);
+
+  set_flag(4, C);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, value == 0);
+  *reg8_pointers[index] = value;
+}
+
+void CPU::sra8() {
+  uint8_t value = ram.readByte(reg.hl);
+
+  bool C = value & 0x1;
+
+  value = (value & 0x80) | (value >> 1);
+
+  set_flag(4, C);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, value == 0);
+
+  ram.writeByte(reg.hl, value);
+}
+
+void CPU::srl8(int index) {
+  uint8_t value = *reg8_pointers[index];
+
+  bool C = value & 0x1;
+
+  value = (value >> 1);
+
+  set_flag(4, C);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, value == 0);
+  *reg8_pointers[index] = value;
+}
+
+void CPU::srl8() {
+  uint8_t value = ram.readByte(reg.hl);
+
+  bool C = value & 0x1;
+
+  value = (value >> 1);
+
+  set_flag(4, C);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, value == 0);
+
+  ram.writeByte(reg.hl, value);
+}
+
+void CPU::swap8(int index) {
+  uint8_t value = *reg8_pointers[index];
+
+  value = (value << 4) | (value >> 4);
+
+  set_flag(4, 0);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, value == 0);
+
+  *reg8_pointers[index] = value;
+}
+
+void CPU::swap8() {
+  uint8_t value = ram.readByte(reg.hl);
+
+  value = (value << 4) | (value >> 4);
+
+  set_flag(4, 0);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, value == 0);
+
   ram.writeByte(reg.hl, value);
 }

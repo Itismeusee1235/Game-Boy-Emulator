@@ -109,6 +109,29 @@ public:
   void res(int pos);
 
   // Functions for bit shift
+  void rl8(int index);
+  void rl8();
+
+  void rlc8(int index);
+  void rlc8();
+
+  void rr8(int index);
+  void rr8();
+
+  void rrc8(int index);
+  void rrc8();
+
+  void sla8(int index);
+  void sla8();
+
+  void sra8(int index);
+  void sra8();
+
+  void srl8(int index);
+  void srl8();
+
+  void swap8(int index);
+  void swap8();
 };
 
 #endif
