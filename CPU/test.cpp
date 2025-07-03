@@ -53,6 +53,14 @@ int main() {
       cout << static_cast<int>(cpu.get_reg16(flag));
       break;
     }
+    case 7: {
+      int src, des;
+      cout << "Reg 1 index ";
+      cin >> des;
+      cout << "Reg 2 index ";
+      cin >> src;
+      cpu.load_reg_reg(des, src);
+    }
     default: {
       cpu.print_reg();
     }

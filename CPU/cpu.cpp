@@ -1,4 +1,5 @@
 #include "./cpu.hpp"
+#include "utils.hpp"
 using namespace std;
 
 CPU::CPU() {
@@ -8,6 +9,14 @@ CPU::CPU() {
   reg.hl = 0;
   reg.sp = 0;
   reg.pc = 0;
+
+  reg_pointers[0] = &reg.b;
+  reg_pointers[1] = &reg.c;
+  reg_pointers[2] = &reg.d;
+  reg_pointers[3] = &reg.e;
+  reg_pointers[4] = &reg.h;
+  reg_pointers[5] = &reg.l;
+  reg_pointers[6] = &reg.a;
 }
 
 void CPU::print_reg() {
@@ -21,7 +30,7 @@ void CPU::print_reg() {
   cout << bitset<8>(reg.e) << "\t" << bitset<8>(reg.d) << "\t"
        << bitset<16>(reg.de) << endl;
   cout << "l" << "\t\t" << "h" << "\t\t" << "hl" << endl;
-  cout << bitset<8>(reg.h) << "\t" << bitset<8>(reg.h) << "\t"
+  cout << bitset<8>(reg.l) << "\t" << bitset<8>(reg.h) << "\t"
        << bitset<16>(reg.hl) << endl;
   cout << "sp" << endl;
   cout << bitset<16>(reg.sp) << endl;
@@ -58,79 +67,19 @@ bool CPU::get_flag(uint8_t flag) {
 }
 
 void CPU::set_reg8(int index, uint8_t value) {
-  // A _ : 1
-  // B c : 2 3
-  // D E : 4 5
-  // H L : 5 7
-
-  switch (index) {
-  case 1: {
-    reg.a = value;
-    break;
+  if (index < 0 || index >= 7) {
+    cout << "Invalid index for setting register(8): " << index << endl;
+    return;
   }
-  case 2: {
-    reg.b = value;
-    break;
-  }
-  case 3: {
-    reg.c = value;
-    break;
-  }
-  case 4: {
-    reg.d = value;
-    break;
-  }
-  case 5: {
-    reg.e = value;
-    break;
-  }
-  case 6: {
-    reg.h = value;
-    break;
-  }
-  case 7: {
-    reg.l = value;
-    break;
-  }
-  default: {
-    cout << "Invalid register(8) index for setting : " << index << endl;
-  }
-  }
+  *reg_pointers[index] = value;
 }
 
 uint8_t CPU::get_reg8(int index) {
-  // A _ : 1
-  // B c : 2 3
-  // D E : 4 5
-  // H L : 5 7
-
-  switch (index) {
-  case 1: {
-    return reg.a;
+  if (index < 0 || index >= 7) {
+    cout << "Invalid index for setting register(8): " << index << endl;
+    return -1;
   }
-  case 2: {
-    return reg.b;
-  }
-  case 3: {
-    return reg.c;
-  }
-  case 4: {
-    return reg.d;
-  }
-  case 5: {
-    return reg.e;
-  }
-  case 6: {
-    return reg.h;
-  }
-  case 7: {
-    return reg.l;
-  }
-  default: {
-    cout << "Invalid register(8) index for getting : " << index << endl;
-  }
-  }
-  return 0;
+  return *reg_pointers[index];
 }
 
 void CPU::set_reg16(int index, uint16_t value) {
@@ -206,4 +155,102 @@ uint16_t CPU::get_reg16(int index) {
   }
     return 0;
   }
+}
+
+void CPU::load(int des_index, int src_index) {
+
+  if (!inRange(src_index, 0, 6) && !inRange(des_index, 0, 6)) {
+    cout << "Invalid src/des index for loading: " << src_index << " "
+         << des_index << endl;
+    return;
+  }
+
+  *reg_pointers[des_index] = *reg_pointers[src_index];
+}
+
+void CPU::load(int index, uint16_t address) {
+
+  if (!inRange(index, 0, 6)) {
+    cout << "Invalid index for setting register(8) from address: " << index
+         << endl;
+    return;
+  }
+  *reg_pointers[index] = ram.readByte(address);
+}
+
+void CPU::load(uint16_t address, int index) {
+  if (!inRange(index, 0, 6)) {
+    cout << "Invalid index for setting address from register(8): " << index
+         << endl;
+    return;
+  }
+  ram.writeByte(address, *reg_pointers[index]);
+}
+
+void CPU::add8(int index, bool carry) {
+  int result = 0;
+  uint8_t value = *reg_pointers[index];
+  uint8_t A = get_reg8(6);
+
+  int car = carry ? get_flag(4) : 0;
+
+  result = A + value + car;
+
+  bool HC = (A & 15) + (value & 15) + car > 15;
+  bool C = result > 255;
+
+  *reg_pointers[6] = static_cast<uint8_t>(result);
+  set_flag(4, C);
+  set_flag(5, HC);
+  set_flag(6, 0);
+  set_flag(7, *reg_pointers[6] == 0);
+}
+
+void CPU::add8(uint8_t value, bool carry) {
+  int result = 0;
+  uint8_t A = get_reg8(6);
+
+  int car = carry ? get_flag(4) : 0;
+
+  result = A + value + car;
+
+  bool HC = (A & 15) + (value & 15) + car > 15;
+  bool C = result > 255;
+
+  *reg_pointers[6] = static_cast<uint8_t>(result);
+  set_flag(4, C);
+  set_flag(5, HC);
+  set_flag(6, 0);
+  set_flag(7, *reg_pointers[6] == 0);
+}
+
+void CPU::compare8(int index) {
+  int result = 0;
+  uint8_t value = *reg_pointers[index];
+  uint8_t A = get_reg8(6);
+
+  result = A - value;
+
+  bool HC = (A & 15) < (value & 15);
+  bool C = A < value;
+
+  set_flag(4, C);
+  set_flag(5, HC);
+  set_flag(6, 1);
+  set_flag(7, result == 0);
+}
+
+void CPU::compare8(uint8_t value) {
+  int result = 0;
+  uint8_t A = get_reg8(6);
+
+  result = A - value;
+
+  bool HC = (A & 15) < (value & 15);
+  bool C = A < value;
+
+  set_flag(4, C);
+  set_flag(5, HC);
+  set_flag(6, 1);
+  set_flag(7, result == 0);
 }
