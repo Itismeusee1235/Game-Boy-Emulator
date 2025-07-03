@@ -10,13 +10,17 @@ CPU::CPU() {
   reg.sp = 0;
   reg.pc = 0;
 
-  reg_pointers[0] = &reg.b;
-  reg_pointers[1] = &reg.c;
-  reg_pointers[2] = &reg.d;
-  reg_pointers[3] = &reg.e;
-  reg_pointers[4] = &reg.h;
-  reg_pointers[5] = &reg.l;
-  reg_pointers[6] = &reg.a;
+  reg8_pointers[0] = &reg.b;
+  reg8_pointers[1] = &reg.c;
+  reg8_pointers[2] = &reg.d;
+  reg8_pointers[3] = &reg.e;
+  reg8_pointers[4] = &reg.h;
+  reg8_pointers[5] = &reg.l;
+  reg8_pointers[6] = &reg.a;
+
+  reg16_pointers[0] = &reg.bc;
+  reg16_pointers[1] = &reg.de;
+  reg16_pointers[2] = &reg.hl;
 }
 
 void CPU::print_reg() {
@@ -71,7 +75,7 @@ void CPU::set_reg8(int index, uint8_t value) {
     cout << "Invalid index for setting register(8): " << index << endl;
     return;
   }
-  *reg_pointers[index] = value;
+  *reg8_pointers[index] = value;
 }
 
 uint8_t CPU::get_reg8(int index) {
@@ -79,7 +83,7 @@ uint8_t CPU::get_reg8(int index) {
     cout << "Invalid index for setting register(8): " << index << endl;
     return -1;
   }
-  return *reg_pointers[index];
+  return *reg8_pointers[index];
 }
 
 void CPU::set_reg16(int index, uint16_t value) {
@@ -165,7 +169,7 @@ void CPU::load(int des_index, int src_index) {
     return;
   }
 
-  *reg_pointers[des_index] = *reg_pointers[src_index];
+  *reg8_pointers[des_index] = *reg8_pointers[src_index];
 }
 
 void CPU::load(int index, uint16_t address) {
@@ -175,7 +179,7 @@ void CPU::load(int index, uint16_t address) {
          << endl;
     return;
   }
-  *reg_pointers[index] = ram.readByte(address);
+  *reg8_pointers[index] = ram.readByte(address);
 }
 
 void CPU::load(uint16_t address, int index) {
@@ -184,12 +188,16 @@ void CPU::load(uint16_t address, int index) {
          << endl;
     return;
   }
-  ram.writeByte(address, *reg_pointers[index]);
+  ram.writeByte(address, *reg8_pointers[index]);
 }
 
 void CPU::add8(int index, bool carry) {
+  if (!inRange(index, 0, 6)) {
+    cout << "Invalid index for add8 : " << index << endl;
+    return;
+  }
   int result = 0;
-  uint8_t value = *reg_pointers[index];
+  uint8_t value = *reg8_pointers[index];
   uint8_t A = get_reg8(6);
 
   int car = carry ? get_flag(4) : 0;
@@ -199,11 +207,11 @@ void CPU::add8(int index, bool carry) {
   bool HC = (A & 15) + (value & 15) + car > 15;
   bool C = result > 255;
 
-  *reg_pointers[6] = static_cast<uint8_t>(result);
+  *reg8_pointers[6] = static_cast<uint8_t>(result);
   set_flag(4, C);
   set_flag(5, HC);
   set_flag(6, 0);
-  set_flag(7, *reg_pointers[6] == 0);
+  set_flag(7, *reg8_pointers[6] == 0);
 }
 
 void CPU::add8(uint8_t value, bool carry) {
@@ -217,16 +225,20 @@ void CPU::add8(uint8_t value, bool carry) {
   bool HC = (A & 15) + (value & 15) + car > 15;
   bool C = result > 255;
 
-  *reg_pointers[6] = static_cast<uint8_t>(result);
+  *reg8_pointers[6] = static_cast<uint8_t>(result);
   set_flag(4, C);
   set_flag(5, HC);
   set_flag(6, 0);
-  set_flag(7, *reg_pointers[6] == 0);
+  set_flag(7, *reg8_pointers[6] == 0);
 }
 
 void CPU::compare8(int index) {
+  if (!inRange(index, 0, 6)) {
+    cout << "Invalid index for compare8 : " << index << endl;
+    return;
+  }
   int result = 0;
-  uint8_t value = *reg_pointers[index];
+  uint8_t value = *reg8_pointers[index];
   uint8_t A = get_reg8(6);
 
   result = A - value;
@@ -253,4 +265,239 @@ void CPU::compare8(uint8_t value) {
   set_flag(5, HC);
   set_flag(6, 1);
   set_flag(7, result == 0);
+}
+
+void CPU::increment8(int index) {
+  if (!inRange(index, 0, 6)) {
+    cout << "Invalid index for increment8 : " << index << endl;
+    return;
+  }
+  uint8_t value = (*reg8_pointers[index])++;
+  bool HC = (value & 0x0f) == 15;
+  bool Z = *reg8_pointers[index] == 0;
+
+  set_flag(5, HC);
+  set_flag(6, 0);
+  set_flag(7, Z);
+}
+
+void CPU::increment8(uint16_t address) {
+
+  uint8_t value = ram.readByte(address);
+  bool HC = (value & 0x0f) == 15;
+  bool Z = (++value) == 0;
+
+  set_flag(5, HC);
+  set_flag(6, 0);
+  set_flag(7, Z);
+  ram.writeByte(address, value);
+}
+
+void CPU::decrement8(int index) {
+  if (!inRange(index, 0, 6)) {
+    cout << "Invalid index for increment8 : " << index << endl;
+    return;
+  }
+  uint8_t value = *reg8_pointers[index]--;
+  bool HC = (value & 0xF) == 0;
+  bool Z = *reg8_pointers[index] == 0;
+
+  set_flag(5, HC);
+  set_flag(6, 1);
+  set_flag(7, Z);
+}
+
+void CPU::decrement8(uint16_t address) {
+  uint8_t value = ram.readByte(address);
+  bool HC = (value & 0xF) == 0;
+  bool Z = (--value) == 0;
+
+  set_flag(5, HC);
+  set_flag(6, 1);
+  set_flag(7, Z);
+  ram.writeByte(address, value);
+}
+
+void CPU::sub8(int index, bool carry) {
+  if (!inRange(index, 0, 6)) {
+    cout << "Invalid index for decrement8 : " << index << endl;
+    return;
+  }
+  uint8_t A = *reg8_pointers[6];
+  uint8_t value = *reg8_pointers[index];
+  value += carry ? get_flag(4) : 0;
+
+  bool HC = (A & 0x0F) < (value & 0x0F);
+  bool C = A < value;
+
+  uint8_t result = A - value;
+  *reg8_pointers[6] = result;
+
+  set_flag(4, C);
+  set_flag(5, HC);
+  set_flag(6, 1);
+  set_flag(7, result == 0);
+}
+
+void CPU::sub8(uint8_t value, bool carry) {
+  uint8_t A = *reg8_pointers[6];
+  value += carry ? get_flag(4) : 0;
+
+  bool HC = (A & 0x0F) < (value & 0x0F);
+  bool C = A < value;
+
+  uint8_t result = A - value;
+  *reg8_pointers[6] = result;
+
+  set_flag(4, C);
+  set_flag(5, HC);
+  set_flag(6, 1);
+  set_flag(7, result == 0);
+}
+
+void CPU::add16(int index) {
+  if (!inRange(index, 0, 2)) {
+    cout << "Invalid index for add register16 : " << index << endl;
+    return;
+  }
+  uint16_t value = *reg16_pointers[index];
+  uint16_t HL = *reg16_pointers[2];
+
+  bool HC = (HL & 0x0FFF) + (value & 0x0FFF) > 0x0FFF;
+  bool C = (HL + value) > 0xFFFF;
+
+  *reg16_pointers[2] = HL + value;
+
+  set_flag(4, C);
+  set_flag(5, HC);
+  set_flag(6, 0);
+}
+
+void CPU::increment16(int index) {
+
+  if (!inRange(index, 0, 2)) {
+    cout << "Invalid index for increment register16 : " << index << endl;
+    return;
+  }
+  *reg16_pointers[index] += 1;
+}
+
+void CPU::decrement16(int index) {
+
+  if (!inRange(index, 0, 2)) {
+    cout << "Invalid index for decrement register16 : " << index << endl;
+    return;
+  }
+  *reg16_pointers[index] -= 1;
+}
+
+void CPU::and8(int index) {
+  if (!inRange(index, 0, 6)) {
+    cout << "Invalid index for and8 : " << index << endl;
+    return;
+  }
+  uint8_t result = *reg8_pointers[index] & *reg8_pointers[6];
+  *reg8_pointers[6] = result;
+
+  set_flag(4, 0);
+  set_flag(5, 1);
+  set_flag(6, 0);
+  set_flag(7, result == 0);
+}
+void CPU::and8(uint8_t value) {
+  uint8_t result = value & *reg8_pointers[6];
+  *reg8_pointers[6] = result;
+
+  set_flag(4, 0);
+  set_flag(5, 1);
+  set_flag(6, 0);
+  set_flag(7, result == 0);
+}
+
+void CPU::cpl() {
+  *reg8_pointers[6] = ~(*reg8_pointers[6]);
+  set_flag(5, 1);
+  set_flag(6, 1);
+}
+
+void CPU::or8(int index) {
+  if (!inRange(index, 0, 6)) {
+    cout << "Invalid index for and8 : " << index << endl;
+    return;
+  }
+  uint8_t result = *reg8_pointers[index] | *reg8_pointers[6];
+  *reg8_pointers[6] = result;
+
+  set_flag(4, 0);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, result == 0);
+}
+void CPU::or8(uint8_t value) {
+  uint8_t result = value | *reg8_pointers[6];
+  *reg8_pointers[6] = result;
+
+  set_flag(4, 0);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, result == 0);
+}
+
+void CPU::xor8(int index) {
+  if (!inRange(index, 0, 6)) {
+    cout << "Invalid index for and8 : " << index << endl;
+    return;
+  }
+  uint8_t result = *reg8_pointers[index] ^ *reg8_pointers[6];
+  *reg8_pointers[6] = result;
+
+  set_flag(4, 0);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, result == 0);
+}
+void CPU::xor8(uint8_t value) {
+  uint8_t result = value ^ *reg8_pointers[6];
+  *reg8_pointers[6] = result;
+
+  set_flag(4, 0);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, result == 0);
+}
+
+void CPU::bit(int index, int pos) {
+  bool val = (*reg8_pointers[index] & (1 << pos)) != 0;
+  set_flag(5, 1);
+  set_flag(6, 0);
+  set_flag(7, val);
+}
+
+void CPU::bit(int pos) {
+  bool val = (*reg16_pointers[2] & (1 << pos)) != 0;
+  set_flag(5, 1);
+  set_flag(6, 0);
+  set_flag(7, val);
+}
+
+void CPU::set(int index, int pos) {
+  uint8_t value = *reg8_pointers[index];
+  value |= (1 << pos);
+  *reg8_pointers[index] = value;
+}
+void CPU::set(int pos) {
+  uint8_t value = ram.readByte(reg.hl);
+  value |= (1 << pos);
+  ram.writeByte(reg.hl, value);
+}
+
+void CPU::res(int index, int pos) {
+  uint8_t value = *reg8_pointers[index];
+  value = (value & (~(1 << pos)));
+  *reg8_pointers[index] = value;
+}
+void CPU::res(int pos) {
+  uint8_t value = ram.readByte(reg.hl);
+  value = (value & (~(1 << pos)));
+  ram.writeByte(reg.hl, value);
 }

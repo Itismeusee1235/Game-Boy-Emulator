@@ -38,7 +38,8 @@ class CPU {
     uint16_t pc;
   } reg;
 
-  uint8_t *reg_pointers[7];
+  uint8_t *reg8_pointers[7];
+  uint16_t *reg16_pointers[3];
 
   MMU ram;
 
@@ -79,6 +80,35 @@ public:
 
   void sub8(int index, bool carry);
   void sub8(uint8_t value, bool carry);
+
+  // Functions for 16 bit arithematic
+  void add16(int index);
+  void increment16(int index);
+  void decrement16(int index);
+
+  // Functions for bitwise logic
+  void and8(int index);
+  void and8(uint8_t value);
+
+  void cpl();
+
+  void or8(int index);
+  void or8(uint8_t value);
+
+  void xor8(int index);
+  void xor8(uint8_t value);
+
+  // Functions for bit flags
+  void bit(int index, int pos);
+  void bit(int pos);
+
+  void set(int index, int pos);
+  void set(int pos);
+
+  void res(int index, int pos);
+  void res(int pos);
+
+  // Functions for bit shift
 };
 
 #endif
