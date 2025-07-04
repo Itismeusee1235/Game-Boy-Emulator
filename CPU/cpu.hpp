@@ -132,6 +132,15 @@ public:
 
   void swap8(int index);
   void swap8();
+
+  // Functions for jumps and subroutines
+  void jump(uint16_t address, int condition);
+  void rel_jump(int8_t offset, int condition);
+
+  // functions for stack manipulation
+  void addSP(int8_t offset);
+
+  void execute();
 };
 
 #endif
