@@ -56,7 +56,7 @@ class CPU {
       {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, // 0x90–0x9F
       {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, // 0xA0–0xAF
       {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, // 0xB0–0xBF
-      {1, 1, 3, 1, 3, 1, 2, 1, 1, 1, 3, 1, 3, 1, 2, 1}, // 0xC0–0xCF
+      {1, 1, 3, 1, 3, 1, 2, 1, 1, 1, 3, 2, 3, 1, 2, 1}, // 0xC0–0xCF
       {1, 1, 3, 1, 3, 1, 2, 1, 1, 1, 3, 1, 3, 1, 2, 1}, // 0xD0–0xDF
       {2, 1, 2, 1, 0, 1, 2, 1, 3, 1, 3, 1, 3, 1, 3, 1}, // 0xE0–0xEF
       {2, 1, 2, 1, 0, 1, 2, 1, 3, 1, 3, 1, 3, 1, 3, 1}, // 0xF0–0xFF
@@ -119,38 +119,24 @@ public:
 
   // Functions for bit flags
   void bit(int index, int pos);
-  void bit(int pos);
 
   void set(int index, int pos);
-  void set(int pos);
 
   void res(int index, int pos);
-  void res(int pos);
 
   // Functions for bit shift
   void rl8(int index);
-  void rl8();
-
   void rlc8(int index);
-  void rlc8();
 
   void rr8(int index);
-  void rr8();
-
   void rrc8(int index);
-  void rrc8();
 
   void sla8(int index);
-  void sla8();
 
   void sra8(int index);
-  void sra8();
-
   void srl8(int index);
-  void srl8();
 
   void swap8(int index);
-  void swap8();
 
   // Functions for jumps and subroutines
   void jump(uint16_t address, int condition);
