@@ -21,6 +21,7 @@ CPU::CPU() {
   reg16_pointers[0] = &reg.bc;
   reg16_pointers[1] = &reg.de;
   reg16_pointers[2] = &reg.hl;
+  reg16_pointers[3] = &reg.sp;
 }
 
 void CPU::print_reg() {
@@ -356,7 +357,7 @@ void CPU::sub8(uint8_t value, bool carry) {
 }
 
 void CPU::add16(int index) {
-  if (!inRange(index, 0, 2)) {
+  if (!inRange(index, 0, 3)) {
     cout << "Invalid index for add register16 : " << index << endl;
     return;
   }
@@ -795,11 +796,22 @@ void CPU::execute() {
 
   bool pc_shifted = false;
 
+  if (ime_clock > 0) {
+    ime_clock--;
+  }
+
   switch (high) {
   case 0x0: {
     switch (low) {
+    case 0x0: {
+      break;
+    }
     case 0x2: {
       load(reg.bc, 6);
+      break;
+    }
+    case 0x3: {
+      increment16(0);
       break;
     }
     case 0x4: {
@@ -821,8 +833,16 @@ void CPU::execute() {
       set_flag(7, 0);
       break;
     }
+    case 0x9: {
+      add16(0);
+      break;
+    }
     case 0xA: {
       load(6, reg.bc);
+      break;
+    }
+    case 0xB: {
+      decrement16(0);
       break;
     }
     case 0xC: {
@@ -849,8 +869,17 @@ void CPU::execute() {
   }
   case 0x1: {
     switch (low) {
+    case 0x1: {
+      stopped = true;
+      // Not used rn
+      break;
+    }
     case 0x2: {
       load(reg.de, 6);
+      break;
+    }
+    case 0x3: {
+      increment16(1);
       break;
     }
     case 0x4: {
@@ -872,8 +901,16 @@ void CPU::execute() {
       set_flag(7, 0);
       break;
     }
+    case 0x9: {
+      add16(1);
+      break;
+    }
     case 0xA: {
       load(6, reg.de);
+      break;
+    }
+    case 0xB: {
+      decrement16(1);
       break;
     }
     case 0xC: {
@@ -905,6 +942,10 @@ void CPU::execute() {
       increment16(2);
       break;
     }
+    case 0x3: {
+      increment16(2);
+      break;
+    }
     case 0x4: {
       increment8(4);
       break;
@@ -920,9 +961,17 @@ void CPU::execute() {
     case 0x7: {
       // NOTE: Implement DAA
     }
+    case 0x9: {
+      add16(2);
+      break;
+    }
     case 0xA: {
       load(6, reg.hl);
       increment16(2);
+      break;
+    }
+    case 0xB: {
+      decrement16(2);
       break;
     }
     case 0xC: {
@@ -951,6 +1000,10 @@ void CPU::execute() {
       decrement16(2);
       break;
     }
+    case 0x3: {
+      increment16(3);
+      break;
+    }
     case 0x4: {
       increment8(reg.hl);
       break;
@@ -969,9 +1022,17 @@ void CPU::execute() {
       set_flag(7, 0);
       break;
     }
+    case 0x9: {
+      add16(3);
+      break;
+    }
     case 0xA: {
       load(6, reg.hl);
       decrement16(2);
+      break;
+    }
+    case 0xB: {
+      decrement16(3);
       break;
     }
     case 0xC: {
@@ -1003,6 +1064,7 @@ void CPU::execute() {
     int src = opcode & 0x7;
 
     if (dest == 6 && src == 6) {
+      halted = true;
       break;
     }
 
@@ -1214,6 +1276,11 @@ void CPU::execute() {
       and8(ram.readByte(reg.pc + 1));
       break;
     }
+    case 0x8: {
+      uint8_t offset = ram.readByte(reg.pc + 1);
+      addSP(static_cast<int8_t>(offset));
+      break;
+    }
     case 0xA: {
       load(ram.readWord(reg.pc + 1), 6);
       break;
@@ -1235,12 +1302,20 @@ void CPU::execute() {
       load(6, 0xFF00 + reg.c);
       break;
     }
+    case 0x3: {
+      ime = false;
+      break;
+    }
     case 0x6: {
       or8(ram.readByte(reg.pc + 1));
       break;
     }
     case 0xA: {
       load(6, ram.readWord(reg.pc + 1));
+      break;
+    }
+    case 0xB: {
+      ime_clock = 2;
       break;
     }
     case 0xE: {
@@ -1254,5 +1329,10 @@ void CPU::execute() {
 
   if (!pc_shifted) {
     reg.pc += pc_increments[high][low];
+  }
+
+  if (ime_clock == 1) {
+    ime = true;
+    ime_clock = 0;
   }
 }

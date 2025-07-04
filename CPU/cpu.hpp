@@ -38,8 +38,13 @@ class CPU {
     uint16_t pc;
   } reg;
 
+  bool ime = false;
+  int ime_clock = 0;
+  bool stopped = false;
+  bool halted = false;
+
   uint8_t *reg8_pointers[7];
-  uint16_t *reg16_pointers[3];
+  uint16_t *reg16_pointers[4];
 
   MMU ram;
 
