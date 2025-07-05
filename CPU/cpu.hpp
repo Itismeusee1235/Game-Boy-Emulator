@@ -85,9 +85,13 @@ public:
   uint16_t get_reg16(int index);
 
   // Functions for loading
-  void load(int des_index, int src_index);
-  void load(int index, uint16_t address);
-  void load(uint16_t address, int src_index);
+  void load8(int des_index, int src_index);
+  void load8(int index, uint16_t address);
+  void load8(uint16_t address, int src_index);
+
+  void load16(int des_index, int src_index);
+  void load16(int index, uint16_t address);
+  void load16(uint16_t address, int src_index);
 
   // Functions for 8 bit arithematic
   void add8(int index, bool carry);
@@ -149,6 +153,10 @@ public:
 
   // functions for stack manipulation
   void addSP(int8_t offset);
+  void pop(int index);
+  void popAF();
+  void push(int index);
+  void pushAF();
 
   void execute();
 };
