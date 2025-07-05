@@ -151,6 +151,7 @@ public:
   bool jump(uint16_t address, int condition);
   bool call(int cc);
   bool ret(int cc);
+  void rst(uint16_t address);
   bool rel_jump(int8_t offset, int condition);
 
   // functions for stack manipulation

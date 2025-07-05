@@ -844,6 +844,14 @@ bool CPU::ret(int cc) {
   return run;
 }
 
+void CPU::rst(uint16_t address) {
+  reg.sp -= 1;
+  ram.writeByte(reg.sp, address >> 8);
+  reg.sp -= 1;
+  ram.writeByte(reg.sp, address & 0x00FF);
+  jump(ram.readWord(reg.pc + 1), -1);
+}
+
 void CPU::addSP(int8_t off) {
 
   uint16_t value = reg.sp;
@@ -1362,6 +1370,11 @@ void CPU::execute() {
       add8(ram.readByte(reg.pc + 1), 0);
       break;
     }
+    case 0x7: {
+      rst(0x00);
+      pc_shifted = true;
+      break;
+    }
     case 0x8: {
       if (ret(1)) {
         pc_shifted = true;
@@ -1471,6 +1484,11 @@ void CPU::execute() {
       add8(ram.readByte(reg.pc + 1), 1);
       break;
     }
+    case 0xF: {
+      rst(0x08);
+      pc_shifted = true;
+      break;
+    }
     }
     break;
   }
@@ -1507,6 +1525,11 @@ void CPU::execute() {
       sub8(ram.readByte(reg.pc + 1), 0);
       break;
     }
+    case 0x7: {
+      rst(0x10);
+      pc_shifted = true;
+      break;
+    }
     case 0x8: {
       if (ret(3)) {
         pc_shifted = true;
@@ -1514,7 +1537,10 @@ void CPU::execute() {
       break;
     }
     case 0x9: {
-      // NOTE: Implement RETI
+      if (ret(-1)) {
+        pc_shifted = true;
+      }
+      ime_clock = 1;
       break;
     }
     case 0xA: {
@@ -1534,30 +1560,40 @@ void CPU::execute() {
       sub8(ram.readByte(reg.pc + 1), 1);
       break;
     }
+    case 0xF: {
+      rst(0x18);
+      pc_shifted = true;
+      break;
+    }
     }
     break;
   }
   case 0xE: {
     switch (low) {
-    case 0x1: {
-      pop(2);
-      break;
-    }
-    case 0x5: {
-      push(2);
-      break;
-    }
     case 0x0: {
       uint8_t n = ram.readByte(reg.pc + 1);
       load8(0xFF00 + n, 6);
+      break;
+    }
+    case 0x1: {
+      pop(2);
       break;
     }
     case 0x2: {
       load8(0xFF00 + reg.c, 6);
       break;
     }
+    case 0x5: {
+      push(2);
+      break;
+    }
     case 0x6: {
       and8(ram.readByte(reg.pc + 1));
+      break;
+    }
+    case 0x7: {
+      rst(0x20);
+      pc_shifted = true;
       break;
     }
     case 0x8: {
@@ -1577,6 +1613,12 @@ void CPU::execute() {
     }
     case 0xE: {
       xor8(ram.readByte(reg.pc + 1));
+      break;
+    }
+    case 0xF: {
+      rst(0x28);
+      pc_shifted = true;
+      break;
     }
     }
     break;
@@ -1608,6 +1650,11 @@ void CPU::execute() {
       or8(ram.readByte(reg.pc + 1));
       break;
     }
+    case 0x7: {
+      rst(0x30);
+      pc_shifted = true;
+      break;
+    }
     case 0x8: {
       int8_t offset = static_cast<int8_t>(ram.readByte(reg.pc + 1));
       uint16_t SP = reg.sp;
@@ -1634,6 +1681,11 @@ void CPU::execute() {
     }
     case 0xE: {
       compare8(ram.readByte(reg.pc + 1));
+      break;
+    }
+    case 0xF: {
+      rst(0x38);
+      pc_shifted = true;
       break;
     }
     }
