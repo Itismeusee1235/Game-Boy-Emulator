@@ -755,34 +755,93 @@ void CPU::swap8(int index) {
   }
 }
 
-void CPU::jump(uint16_t address, int condition) {
+bool CPU::jump(uint16_t address, int cc) {
 
-  if (condition == 0 && !get_flag(7)) {
-    return;
-  } else if (condition == 1 && get_flag(7)) {
-    return;
-  } else if (condition == 2 && !get_flag(4)) {
-    return;
-  } else if (condition == 3 && get_flag(4)) {
-    return;
+  bool run = false;
+  if (cc == -1) {
+    run = true;
+  } else if (cc == 0 && !get_flag(7)) {
+    run = true;
+  } else if (cc == 1 && get_flag(7)) {
+    run = true;
+  } else if (cc == 2 && !get_flag(4)) {
+    run = true;
+  } else if (cc == 3 && get_flag(4)) {
+    run = true;
   }
-
-  reg.pc = address;
+  if (run) {
+    reg.pc = address;
+  }
+  return run;
 }
 
-void CPU::rel_jump(int8_t offset, int condition) {
+bool CPU::rel_jump(int8_t offset, int cc) {
 
-  if (condition == 0 && !get_flag(7)) {
-    return;
-  } else if (condition == 1 && get_flag(7)) {
-    return;
-  } else if (condition == 2 && !get_flag(4)) {
-    return;
-  } else if (condition == 3 && get_flag(4)) {
-    return;
+  bool run = false;
+  if (cc == -1) {
+    run = true;
+  } else if (cc == 0 && !get_flag(7)) {
+    run = true;
+  } else if (cc == 1 && get_flag(7)) {
+    run = true;
+  } else if (cc == 2 && !get_flag(4)) {
+    run = true;
+  } else if (cc == 3 && get_flag(4)) {
+    run = true;
   }
+  if (run) {
 
-  reg.pc += offset;
+    reg.pc += offset;
+  }
+  return true;
+}
+
+bool CPU::call(int cc) {
+  bool run = false;
+  if (cc == -1) {
+    run = true;
+  } else if (cc == 0 && !get_flag(7)) {
+    run = true;
+  } else if (cc == 1 && get_flag(7)) {
+    run = true;
+  } else if (cc == 2 && !get_flag(4)) {
+    run = true;
+  } else if (cc == 3 && get_flag(4)) {
+    run = true;
+  }
+  if (run) {
+    uint16_t push_address = reg.pc + 3;
+    reg.sp -= 1;
+    ram.writeByte(reg.sp, push_address >> 8);
+    reg.sp -= 1;
+    ram.writeByte(reg.sp, push_address & 0x00FF);
+    jump(ram.readWord(reg.pc + 1), -1);
+  }
+  return run;
+}
+
+bool CPU::ret(int cc) {
+  bool run = false;
+  if (cc == -1) {
+    run = true;
+  } else if (cc == 0 && !get_flag(7)) {
+    run = true;
+  } else if (cc == 1 && get_flag(7)) {
+    run = true;
+  } else if (cc == 2 && !get_flag(4)) {
+    run = true;
+  } else if (cc == 3 && get_flag(4)) {
+    run = true;
+  }
+  if (run) {
+    uint8_t low, high;
+    low = ram.readByte(reg.sp);
+    reg.sp += 1;
+    high = ram.readByte(reg.sp);
+    reg.sp += 1;
+    reg.pc = (high << 8) | low;
+  }
+  return run;
 }
 
 void CPU::addSP(int8_t off) {
@@ -818,7 +877,7 @@ void CPU::popAF() {
 }
 void CPU::push(int index) {
   uint8_t low = *reg16_pointers[index] & 0x00FF;
-  uint8_t high = (*reg16_pointers[index] & 0xFF00) >> 8;
+  uint8_t high = *reg16_pointers[index] >> 8;
   reg.sp -= 1;
   ram.writeByte(reg.sp, high);
   reg.sp -= 1;
@@ -958,6 +1017,13 @@ void CPU::execute() {
       set_flag(7, 0);
       break;
     }
+    case 0x8: {
+      int8_t offset = static_cast<int8_t>(ram.readByte(reg.pc + 1));
+      if (rel_jump(offset, -1)) {
+        pc_shifted = true;
+      }
+      break;
+    }
     case 0x9: {
       add16(1);
       break;
@@ -994,6 +1060,13 @@ void CPU::execute() {
   }
   case 0x2: {
     switch (low) {
+    case 0x0: {
+      int8_t offset = static_cast<int8_t>(ram.readByte(reg.pc + 1));
+      if (rel_jump(offset, 0)) {
+        pc_shifted = true;
+      }
+      break;
+    }
     case 0x1: {
       load16(2, reg.pc + 1);
       break;
@@ -1021,622 +1094,14 @@ void CPU::execute() {
     }
     case 0x7: {
       // NOTE: Implement DAA
-    }
-    case 0x9: {
-      add16(2);
-      break;
-    }
-    case 0xA: {
-      load8(6, reg.hl);
-      increment16(2);
-      break;
-    }
-    case 0xB: {
-      decrement16(2);
-      break;
-    }
-    case 0xC: {
-      increment8(5);
-      break;
-    }
-    case 0xD: {
-      decrement8(5);
-      break;
-    }
-    case 0xE: {
-      load8(5, ram.readByte(reg.pc + 1));
-      break;
-    }
-    case 0xF: {
-      cpl();
-      break;
-    }
-    }
-    break;
-  }
-  case 0x3: {
-    switch (low) {
-    case 0x1: {
-      load16(3, reg.pc + 1);
-      break;
-    }
-    case 0x2: {
-      load8(reg.hl, 6);
-      decrement16(2);
-      break;
-    }
-    case 0x3: {
-      increment16(3);
-      break;
-    }
-    case 0x4: {
-      increment8(reg.hl);
-      break;
-    }
-    case 0x5: {
-      decrement8(reg.hl);
-      break;
-    }
-    case 0x6: {
-      load8(reg.hl, ram.readByte(reg.pc + 1));
-      break;
-    }
-    case 0x7: {
-      set_flag(4, 1);
-      set_flag(6, 0);
-      set_flag(7, 0);
-      break;
-    }
-    case 0x9: {
-      add16(3);
-      break;
-    }
-    case 0xA: {
-      load8(6, reg.hl);
-      decrement16(2);
-      break;
-    }
-    case 0xB: {
-      decrement16(3);
-      break;
-    }
-    case 0xC: {
-      increment8(6);
-      break;
-    }
-    case 0xD: {
-      decrement8(6);
-      break;
-    }
-    case 0xE: {
-      load8(6, ram.readByte(reg.pc + 1));
-      break;
-    }
-    case 0xF: {
-      set_flag(4, !get_flag(4));
-      set_flag(6, 0);
-      set_flag(7, 0);
-      break;
-    }
-    }
-    break;
-  }
-  case 0x4:
-  case 0x5:
-  case 0x6:
-  case 0x7: {
-    int dest = (opcode >> 3) & 0x07;
-    int src = opcode & 0x7;
-
-    if (dest == 6 && src == 6) {
-      halted = true;
-      break;
-    }
-
-    if (dest == 6) {
-      if (src == 7) {
-        load8(reg.hl, 6);
-      } else {
-        load8(reg.hl, src);
-      }
-    } else if (dest == 7) {
-      if (src == 6) {
-        load8(6, reg.hl);
-      } else {
-        load8(6, src);
-      }
-    } else {
-      load8(dest, src);
-    }
-
-    break;
-  }
-  case 0x8: {
-    int src = opcode & 0x07;
-    bool carry = opcode & 0x08;
-
-    if (src == 6) {
-      add8(ram.readByte(reg.hl), carry);
-    } else if (src == 7) {
-      add8(6, carry);
-    } else {
-      add8(src, carry);
-    }
-
-    break;
-  }
-  case 0x9: {
-    int src = opcode & 0x07;
-    bool carry = opcode & 0x08;
-
-    if (src == 6) {
-      sub8(ram.readByte(reg.hl), carry);
-    } else if (src == 7) {
-      sub8(6, carry);
-    } else {
-      sub8(src, carry);
-    }
-
-    break;
-  }
-  case 0xA: {
-    int src = opcode & 0x07;
-    bool isXOR = opcode & 0x08;
-    if (isXOR) {
-      if (src == 6) {
-        xor8(ram.readByte(reg.hl));
-      } else if (src == 7) {
-        xor8(6);
-      } else {
-        xor8(src);
-      }
-    } else {
-      if (src == 6) {
-        and8(ram.readByte(reg.hl));
-      } else if (src == 7) {
-        and8(6);
-      } else {
-        and8(src);
-      }
-    }
-
-    break;
-  }
-  case 0xB: {
-
-    int src = opcode & 0x07;
-    bool isCompare = opcode & 0x08;
-    if (isCompare) {
-      if (src == 6) {
-        compare8(ram.readByte(reg.hl));
-      } else if (src == 7) {
-        compare8(6);
-      } else {
-        compare8(src);
-      }
-    } else {
-      if (src == 6) {
-        or8(ram.readByte(reg.hl));
-      } else if (src == 7) {
-        or8(6);
-      } else {
-        or8(src);
-      }
-    }
-
-    break;
-  }
-  case 0xC: {
-    switch (low) {
-    case 0x1: {
-      pop(0);
-      break;
-    }
-    case 0x5: {
-      push(0);
-      break;
-    }
-    case 0x6: {
-      add8(ram.readByte(reg.pc + 1), 0);
-      break;
-    }
-    case 0xB: {
-      uint8_t sub_op = ram.readByte(reg.pc + 1);
-      int sub_low = sub_op & 0x0F;
-      int sub_high = (sub_op & 0xF0) >> 4;
-
-      int index = sub_op & 0x07;
-      bool type2 = sub_op & 0x08;
-
-      if (index == 0x06) {
-        index = -1;
-      } else if (index == 0x07) {
-        index = 6;
-      }
-
-      switch (sub_high) {
-      case 0x0: {
-        if (type2) {
-          rrc8(index);
-        } else {
-          rlc8(index);
-        }
-        break;
-      }
-      case 0x1: {
-        if (type2) {
-          rr8(index);
-        } else {
-          rl8(index);
-        }
-        break;
-      }
-      case 0x2: {
-        if (type2) {
-          sra8(index);
-        } else {
-          sla8(index);
-        }
-        break;
-      }
-      case 0x3: {
-        if (type2) {
-          srl8(index);
-        } else {
-          swap8(index);
-        }
-        break;
-      }
-      case 0x4:
-      case 0x5:
-      case 0x6:
-      case 0x7: {
-        int pos = (sub_high - 0x4) * 2 + type2;
-        bit(index, pos);
-        break;
-      }
-      case 0x8:
-      case 0x9:
-      case 0xA:
-      case 0xB: {
-        int pos = (sub_high - 0x8) * 2 + type2;
-        res(index, pos);
-        break;
-      }
-      case 0xC:
-      case 0xD:
-      case 0xE:
-      case 0xF: {
-        int pos = (sub_high - 0x4) * 2 + type2;
-        set(index, pos);
-        break;
-      }
-      }
-      break;
-    }
-    case 0xE: {
-      add8(ram.readByte(reg.pc + 1), 1);
-      break;
-    }
-    }
-    break;
-  }
-  case 0xD: {
-    switch (low) {
-    case 0x1: {
-      pop(1);
-      break;
-    }
-    case 0x5: {
-      push(1);
-      break;
-    }
-    case 0x6: {
-      sub8(ram.readByte(reg.pc + 1), 0);
-      break;
-    }
-    case 0xE: {
-      sub8(ram.readByte(reg.pc + 1), 1);
-      break;
-    }
-    }
-    break;
-  }
-  case 0xE: {
-    switch (low) {
-    case 0x1: {
-      pop(2);
-      break;
-    }
-    case 0x5: {
-      push(2);
-      break;
-    }
-    case 0x0: {
-      uint8_t n = ram.readByte(reg.pc + 1);
-      load8(0xFF00 + n, 6);
-      break;
-    }
-    case 0x2: {
-      load8(0xFF00 + reg.c, 6);
-      break;
-    }
-    case 0x6: {
-      and8(ram.readByte(reg.pc + 1));
-      break;
-    }
-    case 0x8: {
-      uint8_t offset = ram.readByte(reg.pc + 1);
-      addSP(static_cast<int8_t>(offset));
-      break;
-    }
-    case 0xA: {
-      load8(ram.readWord(reg.pc + 1), 6);
-      break;
-    }
-    case 0xE: {
-      xor8(ram.readByte(reg.pc + 1));
-    }
-    }
-    break;
-  }
-  case 0xF: {
-    switch (low) {
-    case 0x0: {
-      uint8_t n = ram.readByte(reg.pc + 1);
-      load8(6, 0xFF00 + n);
-      break;
-    }
-    case 0x1: {
-      popAF();
-      break;
-    }
-    case 0x2: {
-      load8(6, 0xFF00 + reg.c);
-      break;
-    }
-    case 0x3: {
-      ime = false;
-      break;
-    }
-    case 0x5: {
-      pushAF();
-      break;
-    }
-    case 0x6: {
-      or8(ram.readByte(reg.pc + 1));
       break;
     }
     case 0x8: {
       int8_t offset = static_cast<int8_t>(ram.readByte(reg.pc + 1));
-      uint16_t SP = reg.sp;
-      bool HC = (SP & 0x07) + (offset & 0x07) > 0x7;
-      bool C = (SP & 0xFF) + (offset & 0xFF) > 0xFF;
-      reg.hl = reg.sp + offset;
-      set_flag(4, C);
-      set_flag(5, HC);
-      set_flag(6, 0);
-      set_flag(7, 0);
+      if (rel_jump(offset, 1)) {
+        pc_shifted = true;
+      }
       break;
-    }
-    case 0x9: {
-      load16(2, 3);
-      break;
-    }
-    case 0xA: {
-      load8(6, ram.readWord(reg.pc + 1));
-      break;
-    }
-    case 0xB: {
-      ime_clock = 2;
-      break;
-    }
-    case 0xE: {
-      compare8(ram.readByte(reg.pc + 1));
-      break;
-    }
-    }
-    break;
-  }
-  }
-
-  if (!pc_shifted) {
-    reg.pc += pc_increments[high][low];
-  }
-
-  if (ime_clock == 1) {
-    ime = true;
-    ime_clock = 0;
-  }
-}
-te() {
-  uint8_t opcode;
-  opcode = ram.readByte(reg.pc);
-  uint8_t high = (opcode & 0xF0) >> 4;
-  uint8_t low = opcode & 0x0F;
-
-  bool pc_shifted = false;
-
-  if (ime_clock > 0) {
-    ime_clock--;
-  }
-
-  switch (high) {
-  case 0x0: {
-    switch (low) {
-    case 0x0: {
-      break;
-    }
-    case 0x1: {
-      load16(0, reg.pc + 1);
-      break;
-    }
-    case 0x2: {
-      load8(reg.bc, 6);
-      break;
-    }
-    case 0x3: {
-      increment16(0);
-      break;
-    }
-    case 0x4: {
-      increment8(0);
-      break;
-    }
-    case 0x5: {
-      decrement8(0);
-      break;
-    }
-    case 0x6: {
-      load8(0, ram.readByte(reg.pc + 1));
-      break;
-    }
-    case 0x7: {
-      rlc8(6);
-      set_flag(5, 0);
-      set_flag(6, 0);
-      set_flag(7, 0);
-      break;
-    }
-    case 0x8: {
-      load16(ram.readWord(reg.pc + 1), 3);
-      break;
-    }
-    case 0x9: {
-      add16(0);
-      break;
-    }
-    case 0xA: {
-      load8(6, reg.bc);
-      break;
-    }
-    case 0xB: {
-      decrement16(0);
-      break;
-    }
-    case 0xC: {
-      increment8(1);
-      break;
-    }
-    case 0xD: {
-      decrement8(1);
-      break;
-    }
-    case 0xE: {
-      load8(1, ram.readByte(reg.pc + 1));
-      break;
-    }
-    case 0xF: {
-      rrc8(6);
-      set_flag(5, 0);
-      set_flag(6, 0);
-      set_flag(7, 0);
-      break;
-    }
-    }
-    break;
-  }
-  case 0x1: {
-    switch (low) {
-    case 0x0: {
-      stopped = true;
-      // Not used rn
-      break;
-    }
-    case 0x1: {
-      load16(1, reg.pc + 1);
-      break;
-    }
-    case 0x2: {
-      load8(reg.de, 6);
-      break;
-    }
-    case 0x3: {
-      increment16(1);
-      break;
-    }
-    case 0x4: {
-      increment8(2);
-      break;
-    }
-    case 0x5: {
-      decrement8(2);
-      break;
-    }
-    case 0x6: {
-      load8(1, ram.readByte(reg.pc + 1));
-      break;
-    }
-    case 0x7: {
-      rl8(6);
-      set_flag(5, 0);
-      set_flag(6, 0);
-      set_flag(7, 0);
-      break;
-    }
-    case 0x9: {
-      add16(1);
-      break;
-    }
-    case 0xA: {
-      load8(6, reg.de);
-      break;
-    }
-    case 0xB: {
-      decrement16(1);
-      break;
-    }
-    case 0xC: {
-      increment8(3);
-      break;
-    }
-    case 0xD: {
-      decrement8(3);
-      break;
-    }
-    case 0xE: {
-      load8(3, ram.readByte(reg.pc + 1));
-      break;
-    }
-    case 0xF: {
-      rr8(6);
-      set_flag(5, 0);
-      set_flag(6, 0);
-      set_flag(7, 0);
-      break;
-    }
-    }
-    break;
-  }
-  case 0x2: {
-    switch (low) {
-    case 0x1: {
-      load16(2, reg.pc + 1);
-      break;
-    }
-    case 0x2: {
-      load8(reg.hl, 6);
-      increment16(2);
-      break;
-    }
-    case 0x3: {
-      increment16(2);
-      break;
-    }
-    case 0x4: {
-      increment8(4);
-      break;
-    }
-    case 0x5: {
-      decrement8(4);
-      break;
-    }
-    case 0x6: {
-      load8(4, ram.readByte(reg.pc + 1));
-      break;
-    }
-    case 0x7: {
-      // NOTE: Implement DAA
     }
     case 0x9: {
       add16(2);
@@ -1672,6 +1137,13 @@ te() {
   }
   case 0x3: {
     switch (low) {
+    case 0x0: {
+      int8_t offset = static_cast<int8_t>(ram.readByte(reg.pc + 1));
+      if (rel_jump(offset, 2)) {
+        pc_shifted = true;
+      }
+      break;
+    }
     case 0x1: {
       load16(3, reg.pc + 1);
       break;
@@ -1701,6 +1173,13 @@ te() {
       set_flag(4, 1);
       set_flag(6, 0);
       set_flag(7, 0);
+      break;
+    }
+    case 0x8: {
+      int8_t offset = static_cast<int8_t>(ram.readByte(reg.pc + 1));
+      if (rel_jump(offset, 3)) {
+        pc_shifted = true;
+      }
       break;
     }
     case 0x9: {
@@ -1844,8 +1323,35 @@ te() {
   }
   case 0xC: {
     switch (low) {
+    case 0x0: {
+      if (ret(0)) {
+        pc_shifted = true;
+      }
+      break;
+    }
     case 0x1: {
       pop(0);
+      break;
+    }
+    case 0x2: {
+      uint16_t address = ram.readWord(reg.pc + 1);
+      if (jump(address, 0)) {
+        pc_shifted = true;
+      }
+      break;
+    }
+    case 0x3: {
+      uint16_t address = ram.readWord(reg.pc + 1);
+      if (jump(address, -1)) {
+        pc_shifted = true;
+      }
+      break;
+    }
+    case 0x4: {
+      uint16_t address = ram.readWord(reg.pc + 1);
+      if (call(0)) {
+        pc_shifted = true;
+      }
       break;
     }
     case 0x5: {
@@ -1854,6 +1360,25 @@ te() {
     }
     case 0x6: {
       add8(ram.readByte(reg.pc + 1), 0);
+      break;
+    }
+    case 0x8: {
+      if (ret(1)) {
+        pc_shifted = true;
+      }
+      break;
+    }
+    case 0x9: {
+      if (ret(-1)) {
+        pc_shifted = true;
+      }
+      break;
+    }
+    case 0xA: {
+      uint16_t address = ram.readWord(reg.pc + 1);
+      if (jump(address, 1)) {
+        pc_shifted = true;
+      }
       break;
     }
     case 0xB: {
@@ -1930,6 +1455,18 @@ te() {
       }
       break;
     }
+    case 0xC: {
+      if (call(1)) {
+        pc_shifted = true;
+      }
+      break;
+    }
+    case 0xD: {
+      if (call(-1)) {
+        pc_shifted = true;
+      }
+      break;
+    }
     case 0xE: {
       add8(ram.readByte(reg.pc + 1), 1);
       break;
@@ -1939,8 +1476,27 @@ te() {
   }
   case 0xD: {
     switch (low) {
+    case 0x0: {
+      if (ret(2)) {
+        pc_shifted = true;
+      }
+      break;
+    }
     case 0x1: {
       pop(1);
+      break;
+    }
+    case 0x2: {
+      uint16_t address = ram.readWord(reg.pc + 1);
+      if (jump(address, 2)) {
+        pc_shifted = true;
+      }
+      break;
+    }
+    case 0x4: {
+      if (call(2)) {
+        pc_shifted = true;
+      }
       break;
     }
     case 0x5: {
@@ -1949,6 +1505,29 @@ te() {
     }
     case 0x6: {
       sub8(ram.readByte(reg.pc + 1), 0);
+      break;
+    }
+    case 0x8: {
+      if (ret(3)) {
+        pc_shifted = true;
+      }
+      break;
+    }
+    case 0x9: {
+      // NOTE: Implement RETI
+      break;
+    }
+    case 0xA: {
+      uint16_t address = ram.readWord(reg.pc + 1);
+      if (jump(address, 3)) {
+        pc_shifted = true;
+      }
+      break;
+    }
+    case 0xC: {
+      if (call(3)) {
+        pc_shifted = true;
+      }
       break;
     }
     case 0xE: {
@@ -1984,6 +1563,12 @@ te() {
     case 0x8: {
       uint8_t offset = ram.readByte(reg.pc + 1);
       addSP(static_cast<int8_t>(offset));
+      break;
+    }
+    case 0x9: {
+      if (jump(reg.hl, -1)) {
+        pc_shifted = true;
+      }
       break;
     }
     case 0xA: {

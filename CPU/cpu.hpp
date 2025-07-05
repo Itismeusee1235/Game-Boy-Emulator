@@ -148,8 +148,10 @@ public:
   void swap8(int index);
 
   // Functions for jumps and subroutines
-  void jump(uint16_t address, int condition);
-  void rel_jump(int8_t offset, int condition);
+  bool jump(uint16_t address, int condition);
+  bool call(int cc);
+  bool ret(int cc);
+  bool rel_jump(int8_t offset, int condition);
 
   // functions for stack manipulation
   void addSP(int8_t offset);
