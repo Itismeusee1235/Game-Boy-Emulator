@@ -1384,7 +1384,7 @@ void CPU::execute() {
   case 0x3B: {
     int des = (opcode >> 3) & 0x07;
     cout << "DEC " << des << endl;
-    increment16(des);
+    decrement16(des);
     break;
   }
 
