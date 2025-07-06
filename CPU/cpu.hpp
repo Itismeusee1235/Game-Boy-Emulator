@@ -72,6 +72,7 @@ public:
   CPU();
 
   void print_reg();
+  uint8_t get_operand8(int index);
 
   // Functions for setting and getting flags
 
@@ -96,19 +97,14 @@ public:
 
   // Functions for 8 bit arithematic
   void add8(int index, bool carry);
-  void add8(uint8_t value, bool carry);
-
-  void compare8(int index);
-  void compare8(uint8_t value);
-
-  void decrement8(int index);
-  void decrement8(uint16_t address);
-
-  void increment8(int index);
-  void increment8(uint16_t address);
 
   void sub8(int index, bool carry);
-  void sub8(uint8_t value, bool carry);
+
+  void compare8(int index);
+
+  void decrement8(int index);
+
+  void increment8(int index);
 
   // Functions for 16 bit arithematic
   void add16(int index);
@@ -117,15 +113,14 @@ public:
 
   // Functions for bitwise logic
   void and8(int index);
-  void and8(uint8_t value);
 
   void cpl();
 
   void or8(int index);
-  void or8(uint8_t value);
 
   void xor8(int index);
-  void xor8(uint8_t value);
+
+  void handle_CB(uint8_t opcode);
 
   // Functions for bit flags
   void bit(int index, int pos);

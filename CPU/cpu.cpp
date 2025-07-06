@@ -84,95 +84,8 @@ bool CPU::get_flag(uint8_t flag) {
   return (reg.f >> flag) & 1;
 }
 
-void CPU::set_reg8(int index, uint8_t value) {
-  if (index < 0 || index >= 7) {
-    cout << "Invalid index for setting register(8): " << index << endl;
-    return;
-  }
-  *reg8_pointers[index] = value;
-}
-
-uint8_t CPU::get_reg8(int index) {
-  if (index < 0 || index >= 7) {
-    cout << "Invalid index for setting register(8): " << index << endl;
-    return -1;
-  }
-  return *reg8_pointers[index];
-}
-
-void CPU::set_reg16(int index, uint16_t value) {
-  //
-  // AF : 1
-  // BC : 2
-  // DE : 3
-  // HL : 4
-  // SP : 5
-  // PC : 6
-
-  switch (index) {
-  case 1: {
-    reg.af = value;
-    break;
-  }
-  case 2: {
-    reg.bc = value;
-    break;
-  }
-  case 3: {
-    reg.de = value;
-    break;
-  }
-  case 4: {
-    reg.hl = value;
-    break;
-  }
-  case 5: {
-    reg.sp = value;
-    break;
-  }
-  case 6: {
-    reg.pc = value;
-    break;
-  }
-  default: {
-    cout << "Invalid register(16) index for setting : " << index << endl;
-  }
-  }
-}
-
-uint16_t CPU::get_reg16(int index) {
-  //
-  // AF : 1
-  // BC : 2
-  // DE : 3
-  // HL : 4
-  // SP : 5
-  // PC : 6
-
-  switch (index) {
-  case 1: {
-    return reg.af;
-  }
-  case 2: {
-    return reg.bc;
-  }
-  case 3: {
-    return reg.de;
-  }
-  case 4: {
-    return reg.hl;
-  }
-  case 5: {
-    return reg.sp;
-  }
-  case 6: {
-    return reg.pc;
-  }
-  default: {
-    cout << "Invalid register(16) index for getting : " << index << endl;
-  }
-    return 0;
-  }
+uint8_t CPU::get_operand8(int index) {
+  return (index >= 0) ? *reg8_pointers[index] : ram.readByte(reg.hl);
 }
 
 void CPU::load8(int des_index, int src_index) {
@@ -195,7 +108,6 @@ void CPU::load8(int index, uint16_t address) {
   }
   *reg8_pointers[index] = ram.readByte(address);
 }
-
 void CPU::load8(uint16_t address, int index) {
   if (!inRange(index, 0, 6)) {
     cout << "Invalid index for setting address from register(8): " << index
@@ -204,28 +116,25 @@ void CPU::load8(uint16_t address, int index) {
   }
   ram.writeByte(address, *reg8_pointers[index]);
 }
+
 void CPU::load16(int des_index, int src_index) {
 
   *reg16_pointers[des_index] = *reg16_pointers[src_index];
 }
-
 void CPU::load16(int index, uint16_t address) {
 
   *reg16_pointers[index] = ram.readWord(address);
 }
-
 void CPU::load16(uint16_t address, int index) {
   ram.writeWord(address, *reg16_pointers[index]);
 }
 
 void CPU::add8(int index, bool carry) {
-  if (!inRange(index, 0, 6)) {
-    cout << "Invalid index for add8 : " << index << endl;
-    return;
-  }
   int result = 0;
-  uint8_t value = *reg8_pointers[index];
-  uint8_t A = get_reg8(6);
+
+  uint8_t value = get_operand8(index);
+
+  uint8_t A = *reg8_pointers[6];
 
   int car = carry ? get_flag(4) : 0;
 
@@ -240,48 +149,63 @@ void CPU::add8(int index, bool carry) {
   set_flag(6, 0);
   set_flag(7, *reg8_pointers[6] == 0);
 }
+void CPU::sub8(int index, bool carry) {
+  uint8_t A = *reg8_pointers[6];
 
-void CPU::add8(uint8_t value, bool carry) {
-  int result = 0;
-  uint8_t A = get_reg8(6);
+  uint8_t value = get_operand8(index);
+  value += carry ? get_flag(4) : 0;
 
-  int car = carry ? get_flag(4) : 0;
-
-  result = A + value + car;
-
-  bool HC = (A & 15) + (value & 15) + car > 15;
-  bool C = result > 255;
-
-  *reg8_pointers[6] = static_cast<uint8_t>(result);
-  set_flag(4, C);
-  set_flag(5, HC);
-  set_flag(6, 0);
-  set_flag(7, *reg8_pointers[6] == 0);
-}
-
-void CPU::compare8(int index) {
-  if (!inRange(index, 0, 6)) {
-    cout << "Invalid index for compare8 : " << index << endl;
-    return;
-  }
-  int result = 0;
-  uint8_t value = *reg8_pointers[index];
-  uint8_t A = get_reg8(6);
-
-  result = A - value;
-
-  bool HC = (A & 15) < (value & 15);
+  bool HC = (A & 0x0F) < (value & 0x0F);
   bool C = A < value;
+
+  uint8_t result = A - value;
+  *reg8_pointers[6] = result;
 
   set_flag(4, C);
   set_flag(5, HC);
   set_flag(6, 1);
   set_flag(7, result == 0);
 }
+void CPU::and8(int index) {
+  uint8_t value = get_operand8(index);
+  uint8_t result = value & *reg8_pointers[6];
+  *reg8_pointers[6] = result;
 
-void CPU::compare8(uint8_t value) {
+  set_flag(4, 0);
+  set_flag(5, 1);
+  set_flag(6, 0);
+  set_flag(7, result == 0);
+}
+void CPU::or8(int index) {
+  uint8_t value = get_operand8(index);
+  uint8_t result = value | *reg8_pointers[6];
+  *reg8_pointers[6] = result;
+
+  set_flag(4, 0);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, result == 0);
+}
+void CPU::xor8(int index) {
+  uint8_t value = get_operand8(index);
+  if (index >= 0) {
+    value = *reg8_pointers[index];
+  }
+  uint8_t result = value ^ *reg8_pointers[6];
+  *reg8_pointers[6] = result;
+
+  set_flag(4, 0);
+  set_flag(5, 0);
+  set_flag(6, 0);
+  set_flag(7, result == 0);
+}
+void CPU::compare8(int index) {
+  uint8_t value = get_operand8(index);
+  if (index >= 0) {
+    value = *reg8_pointers[index];
+  }
   int result = 0;
-  uint8_t A = get_reg8(6);
+  uint8_t A = *reg8_pointers[6];
 
   result = A - value;
 
@@ -295,91 +219,36 @@ void CPU::compare8(uint8_t value) {
 }
 
 void CPU::increment8(int index) {
-  if (!inRange(index, 0, 6)) {
-    cout << "Invalid index for increment8 : " << index << endl;
-    return;
+  uint8_t value = get_operand8(index);
+  uint8_t result = value + 1;
+  bool HC = (value & 0x0F) + 1 > 0x0F;
+  bool Z = result == 0;
+
+  set_flag(5, HC);
+  set_flag(6, 0);
+  set_flag(7, Z);
+  if (index == -1) {
+    ram.writeByte(reg.hl, result);
+  } else {
+    *reg8_pointers[index] = result;
   }
-  uint8_t value = (*reg8_pointers[index])++;
-  bool HC = (value & 0x0f) == 15;
-  bool Z = *reg8_pointers[index] == 0;
-
-  set_flag(5, HC);
-  set_flag(6, 0);
-  set_flag(7, Z);
-}
-
-void CPU::increment8(uint16_t address) {
-
-  uint8_t value = ram.readByte(address);
-  bool HC = (value & 0x0f) == 15;
-  bool Z = (++value) == 0;
-
-  set_flag(5, HC);
-  set_flag(6, 0);
-  set_flag(7, Z);
-  ram.writeByte(address, value);
 }
 
 void CPU::decrement8(int index) {
-  if (!inRange(index, 0, 6)) {
-    cout << "Invalid index for increment8 : " << index << endl;
-    return;
-  }
-  uint8_t value = *reg8_pointers[index]--;
+
+  uint8_t value = get_operand8(index);
+  uint8_t result = value - 1;
   bool HC = (value & 0xF) == 0;
-  bool Z = *reg8_pointers[index] == 0;
+  bool Z = result == 0;
 
   set_flag(5, HC);
   set_flag(6, 1);
   set_flag(7, Z);
-}
-
-void CPU::decrement8(uint16_t address) {
-  uint8_t value = ram.readByte(address);
-  bool HC = (value & 0xF) == 0;
-  bool Z = (--value) == 0;
-
-  set_flag(5, HC);
-  set_flag(6, 1);
-  set_flag(7, Z);
-  ram.writeByte(address, value);
-}
-
-void CPU::sub8(int index, bool carry) {
-  if (!inRange(index, 0, 6)) {
-    cout << "Invalid index for decrement8 : " << index << endl;
-    return;
+  if (index == -1) {
+    ram.writeByte(reg.hl, result);
+  } else {
+    *reg8_pointers[index] = result;
   }
-  uint8_t A = *reg8_pointers[6];
-  uint8_t value = *reg8_pointers[index];
-  value += carry ? get_flag(4) : 0;
-
-  bool HC = (A & 0x0F) < (value & 0x0F);
-  bool C = A < value;
-
-  uint8_t result = A - value;
-  *reg8_pointers[6] = result;
-
-  set_flag(4, C);
-  set_flag(5, HC);
-  set_flag(6, 1);
-  set_flag(7, result == 0);
-}
-
-void CPU::sub8(uint8_t value, bool carry) {
-  uint8_t A = *reg8_pointers[6];
-  value += carry ? get_flag(4) : 0;
-
-  bool HC = (A & 0x0F) < (value & 0x0F);
-  bool C = A < value;
-
-  uint8_t result = A - value;
-  *reg8_pointers[6] = result;
-
-  set_flag(4, C);
-  set_flag(5, HC);
-  set_flag(6, 1);
-  set_flag(7, result == 0);
 }
 
 void CPU::add16(int index) {
@@ -418,79 +287,83 @@ void CPU::decrement16(int index) {
   *reg16_pointers[index] -= 1;
 }
 
-void CPU::and8(int index) {
-  if (!inRange(index, 0, 6)) {
-    cout << "Invalid index for and8 : " << index << endl;
-    return;
-  }
-  uint8_t result = *reg8_pointers[index] & *reg8_pointers[6];
-  *reg8_pointers[6] = result;
-
-  set_flag(4, 0);
-  set_flag(5, 1);
-  set_flag(6, 0);
-  set_flag(7, result == 0);
-}
-void CPU::and8(uint8_t value) {
-  uint8_t result = value & *reg8_pointers[6];
-  *reg8_pointers[6] = result;
-
-  set_flag(4, 0);
-  set_flag(5, 1);
-  set_flag(6, 0);
-  set_flag(7, result == 0);
-}
-
 void CPU::cpl() {
   *reg8_pointers[6] = ~(*reg8_pointers[6]);
   set_flag(5, 1);
   set_flag(6, 1);
 }
 
-void CPU::or8(int index) {
-  if (!inRange(index, 0, 6)) {
-    cout << "Invalid index for and8 : " << index << endl;
-    return;
+void CPU::handle_CB(uint8_t sub_op) {
+  int sub_low = sub_op & 0x0F;
+  int sub_high = (sub_op & 0xF0) >> 4;
+
+  int index = sub_op & 0x07;
+  bool type2 = sub_op & 0x08;
+
+  if (index == 0x06) {
+    index = -1;
+  } else if (index == 0x07) {
+    index = 6;
   }
-  uint8_t result = *reg8_pointers[index] | *reg8_pointers[6];
-  *reg8_pointers[6] = result;
 
-  set_flag(4, 0);
-  set_flag(5, 0);
-  set_flag(6, 0);
-  set_flag(7, result == 0);
-}
-void CPU::or8(uint8_t value) {
-  uint8_t result = value | *reg8_pointers[6];
-  *reg8_pointers[6] = result;
-
-  set_flag(4, 0);
-  set_flag(5, 0);
-  set_flag(6, 0);
-  set_flag(7, result == 0);
-}
-
-void CPU::xor8(int index) {
-  if (!inRange(index, 0, 6)) {
-    cout << "Invalid index for and8 : " << index << endl;
-    return;
+  switch (sub_high) {
+  case 0x0: {
+    if (type2) {
+      rrc8(index);
+    } else {
+      rlc8(index);
+    }
+    break;
   }
-  uint8_t result = *reg8_pointers[index] ^ *reg8_pointers[6];
-  *reg8_pointers[6] = result;
-
-  set_flag(4, 0);
-  set_flag(5, 0);
-  set_flag(6, 0);
-  set_flag(7, result == 0);
-}
-void CPU::xor8(uint8_t value) {
-  uint8_t result = value ^ *reg8_pointers[6];
-  *reg8_pointers[6] = result;
-
-  set_flag(4, 0);
-  set_flag(5, 0);
-  set_flag(6, 0);
-  set_flag(7, result == 0);
+  case 0x1: {
+    if (type2) {
+      rr8(index);
+    } else {
+      rl8(index);
+    }
+    break;
+  }
+  case 0x2: {
+    if (type2) {
+      sra8(index);
+    } else {
+      sla8(index);
+    }
+    break;
+  }
+  case 0x3: {
+    if (type2) {
+      srl8(index);
+    } else {
+      swap8(index);
+    }
+    break;
+  }
+  case 0x4:
+  case 0x5:
+  case 0x6:
+  case 0x7: {
+    int pos = (sub_high - 0x4) * 2 + type2;
+    bit(index, pos);
+    break;
+  }
+  case 0x8:
+  case 0x9:
+  case 0xA:
+  case 0xB: {
+    int pos = (sub_high - 0x8) * 2 + type2;
+    res(index, pos);
+    break;
+  }
+  case 0xC:
+  case 0xD:
+  case 0xE:
+  case 0xF: {
+    int pos = (sub_high - 0x4) * 2 + type2;
+    set(index, pos);
+    break;
+  }
+  }
 }
 
 void CPU::bit(int index, int pos) {
@@ -782,6 +655,7 @@ bool CPU::jump(uint16_t address, int cc) {
   } else if (cc == 3 && get_flag(4)) {
     run = true;
   }
+  // printf("Address: %4X, cc: %d, run: %d\n", address, cc, run);
   if (run) {
     reg.pc = address;
   }
@@ -914,8 +788,12 @@ void CPU::pushAF() {
 }
 
 void CPU::execute() {
+
+  bool pc_shifted = false;
+
   uint8_t opcode;
   opcode = ram.readByte(reg.pc);
+
   uint8_t high = (opcode & 0xF0) >> 4;
   uint8_t low = opcode & 0x0F;
 
@@ -923,792 +801,742 @@ void CPU::execute() {
   uint8_t nextByte = ram.readByte(reg.pc + 1);
   uint16_t nextWord = ram.readWord(reg.pc + 1);
 
-  printf("PC = %04X: %02X %02X %02X\n", reg.pc, ram.readByte(reg.pc),
-         ram.readByte(reg.pc + 1), ram.readByte(reg.pc + 1));
-  ram.testMemory(reg.pc);
-  bool pc_shifted = false;
+  printf("\nPC = %04X: %02X %02X %04X\n", reg.pc, ram.readByte(reg.pc),
+         ram.readByte(reg.pc + 1), ram.readWord(reg.pc + 1));
+  // ram.testMemory(reg.pc);
 
   if (ime_clock > 0) {
     ime_clock--;
   }
 
-  switch (high) {
-  case 0x0: {
-    switch (low) {
-    case 0x0: {
-      break;
-    }
-    case 0x1: {
-      load16(0, nextAddress);
-      break;
-    }
-    case 0x2: {
-      load8(reg.bc, 6);
-      break;
-    }
-    case 0x3: {
-      increment16(0);
-      break;
-    }
-    case 0x4: {
-      increment8(0);
-      break;
-    }
-    case 0x5: {
-      decrement8(0);
-      break;
-    }
-    case 0x6: {
-      load8(0, nextAddress);
-      break;
-    }
-    case 0x7: {
-      rlc8(6);
-      set_flag(5, 0);
-      set_flag(6, 0);
-      set_flag(7, 0);
-      break;
-    }
-    case 0x8: {
-      load16(nextAddress, 3);
-      break;
-    }
-    case 0x9: {
-      add16(0);
-      break;
-    }
-    case 0xA: {
-      load8(6, reg.bc);
-      break;
-    }
-    case 0xB: {
-      decrement16(0);
-      break;
-    }
-    case 0xC: {
-      increment8(1);
-      break;
-    }
-    case 0xD: {
-      decrement8(1);
-      break;
-    }
-    case 0xE: {
-      load8(1, nextAddress);
-      break;
-    }
-    case 0xF: {
-      rrc8(6);
-      set_flag(5, 0);
-      set_flag(6, 0);
-      set_flag(7, 0);
-      break;
-    }
-    }
-    break;
-  }
-  case 0x1: {
-    switch (low) {
-    case 0x0: {
-      stopped = true;
-      // Not used rn
-      break;
-    }
-    case 0x1: {
-      load16(1, nextAddress);
-      break;
-    }
-    case 0x2: {
-      load8(reg.de, 6);
-      break;
-    }
-    case 0x3: {
-      increment16(1);
-      break;
-    }
-    case 0x4: {
-      increment8(2);
-      break;
-    }
-    case 0x5: {
-      decrement8(2);
-      break;
-    }
-    case 0x6: {
-      load8(1, nextAddress);
-      break;
-    }
-    case 0x7: {
-      rl8(6);
-      set_flag(5, 0);
-      set_flag(6, 0);
-      set_flag(7, 0);
-      break;
-    }
-    case 0x8: {
-      int8_t offset = static_cast<int8_t>(nextByte);
-      if (rel_jump(offset, -1)) {
-        pc_shifted = true;
-      }
-      break;
-    }
-    case 0x9: {
-      add16(1);
-      break;
-    }
-    case 0xA: {
-      load8(6, reg.de);
-      break;
-    }
-    case 0xB: {
-      decrement16(1);
-      break;
-    }
-    case 0xC: {
-      increment8(3);
-      break;
-    }
-    case 0xD: {
-      decrement8(3);
-      break;
-    }
-    case 0xE: {
-      load8(3, nextAddress);
-      break;
-    }
-    case 0xF: {
-      rr8(6);
-      set_flag(5, 0);
-      set_flag(6, 0);
-      set_flag(7, 0);
-      break;
-    }
-    }
-    break;
-  }
-  case 0x2: {
-    switch (low) {
-    case 0x0: {
-      int8_t offset = static_cast<int8_t>(nextByte);
-      if (rel_jump(offset, 0)) {
-        pc_shifted = true;
-      }
-      break;
-    }
-    case 0x1: {
-      load16(2, nextAddress);
-      break;
-    }
-    case 0x2: {
-      load8(reg.hl, 6);
-      increment16(2);
-      break;
-    }
-    case 0x3: {
-      increment16(2);
-      break;
-    }
-    case 0x4: {
-      increment8(4);
-      break;
-    }
-    case 0x5: {
-      decrement8(4);
-      break;
-    }
-    case 0x6: {
-      load8(4, nextAddress);
-      break;
-    }
-    case 0x7: {
-      // NOTE: Implement DAA
-      break;
-    }
-    case 0x8: {
-      int8_t offset = static_cast<int8_t>(nextByte);
-      if (rel_jump(offset, 1)) {
-        pc_shifted = true;
-      }
-      break;
-    }
-    case 0x9: {
-      add16(2);
-      break;
-    }
-    case 0xA: {
-      load8(6, reg.hl);
-      increment16(2);
-      break;
-    }
-    case 0xB: {
-      decrement16(2);
-      break;
-    }
-    case 0xC: {
-      increment8(5);
-      break;
-    }
-    case 0xD: {
-      decrement8(5);
-      break;
-    }
-    case 0xE: {
-      load8(5, nextAddress);
-      break;
-    }
-    case 0xF: {
-      cpl();
-      break;
-    }
-    }
-    break;
-  }
-  case 0x3: {
-    switch (low) {
-    case 0x0: {
-      int8_t offset = static_cast<int8_t>(nextByte);
-      if (rel_jump(offset, 2)) {
-        pc_shifted = true;
-      }
-      break;
-    }
-    case 0x1: {
-      load16(3, nextAddress);
-      break;
-    }
-    case 0x2: {
-      load8(reg.hl, 6);
-      decrement16(2);
-      break;
-    }
-    case 0x3: {
-      increment16(3);
-      break;
-    }
-    case 0x4: {
-      increment8(reg.hl);
-      break;
-    }
-    case 0x5: {
-      decrement8(reg.hl);
-      break;
-    }
-    case 0x6: {
-      // This is a address to addres load so i didnt make a separate
-      // function,
-      // one time thing
-      ram.writeByte(reg.hl, nextByte);
-      break;
-    }
-    case 0x7: {
-      set_flag(4, 1);
-      set_flag(6, 0);
-      set_flag(7, 0);
-      break;
-    }
-    case 0x8: {
-      int8_t offset = static_cast<int8_t>(nextByte);
-      if (rel_jump(offset, 3)) {
-        pc_shifted = true;
-      }
-      break;
-    }
-    case 0x9: {
-      add16(3);
-      break;
-    }
-    case 0xA: {
-      load8(6, reg.hl);
-      decrement16(2);
-      break;
-    }
-    case 0xB: {
-      decrement16(3);
-      break;
-    }
-    case 0xC: {
-      increment8(6);
-      break;
-    }
-    case 0xD: {
-      decrement8(6);
-      break;
-    }
-    case 0xE: {
-      load8(6, nextAddress);
-      break;
-    }
-    case 0xF: {
-      set_flag(4, !get_flag(4));
-      set_flag(6, 0);
-      set_flag(7, 0);
-      break;
-    }
-    }
-    break;
-  }
-  case 0x4:
-  case 0x5:
-  case 0x6:
-  case 0x7: {
-    int dest = (opcode >> 3) & 0x07;
-    int src = opcode & 0x7;
+  switch (opcode) {
 
-    if (dest == 6 && src == 6) {
-      halted = true;
-      break;
-    }
+  // LD r16 n16
+  case 0x01:
+  case 0x11:
+  case 0x21:
+  case 0x31: {
+    int des = (opcode >> 4) & 0x03;
+    cout << "LD " << des << " n16" << endl;
+    load16(des, nextAddress);
+    break;
+  }
 
-    if (dest == 6) {
-      if (src == 7) {
-        load8(reg.hl, 6);
+  // LD r16 A
+  case 0x02:
+  case 0x12:
+  case 0x22:
+  case 0x32: {
+    int des = (opcode >> 4) & 0x03;
+    if (des == 2 || des == 3) {
+      cout << "LD [HLI/D] A] " << endl;
+      ram.writeByte(reg.hl, reg.a);
+      if (des == 2) {
+        reg.hl++;
       } else {
-        load8(reg.hl, src);
-      }
-    } else if (dest == 7) {
-      if (src == 6) {
-        load8(6, reg.hl);
-      } else {
-        load8(6, src);
+        reg.hl--;
       }
     } else {
-      load8(dest, src);
+      cout << "LD [" << des << "] A " << endl;
+      ram.writeByte(*reg16_pointers[des], reg.a);
     }
-
     break;
   }
-  case 0x8: {
+
+  // LD A r16
+  case 0x0A:
+  case 0x1A:
+  case 0x2A:
+  case 0x3A: {
+    int src = (opcode >> 4) & 0x03;
+    if (src == 2 || src == 3) {
+      cout << "LD A [HLI/D]" << endl;
+      reg.a = ram.readByte(reg.hl);
+      if (src == 2) {
+        reg.hl++;
+      } else {
+        reg.hl--;
+      }
+    } else {
+      cout << "LD A [" << src << "]" << endl;
+      reg.a = ram.readByte(*reg16_pointers[src]);
+    }
+    break;
+  }
+
+  // LD r n8
+  case 0x06:
+  case 0x16:
+  case 0x26:
+  case 0x36:
+  case 0x0E:
+  case 0x1E:
+  case 0x2E:
+  case 0x3E: {
+    int des = (opcode >> 3) & 0x07;
+    int des_index = (des == 7) ? 6 : des;
+    if (des == 6) {
+      cout << "LD [HL] n8" << endl;
+      ram.writeByte(reg.hl, ram.readByte(nextAddress));
+    } else {
+      cout << "LD " << des_index << " n8" << endl;
+      load8(des_index, nextAddress);
+    }
+    break;
+  }
+
+  // LD r1 r2
+  case 0x40:
+  case 0x41:
+  case 0x42:
+  case 0x43:
+  case 0x44:
+  case 0x45:
+  case 0x46:
+  case 0x47:
+  case 0x48:
+  case 0x49:
+  case 0x4A:
+  case 0x4B:
+  case 0x4C:
+  case 0x4D:
+  case 0x4E:
+  case 0x4F:
+  case 0x50:
+  case 0x51:
+  case 0x52:
+  case 0x53:
+  case 0x54:
+  case 0x55:
+  case 0x56:
+  case 0x57:
+  case 0x58:
+  case 0x59:
+  case 0x5A:
+  case 0x5B:
+  case 0x5C:
+  case 0x5D:
+  case 0x5E:
+  case 0x5F:
+  case 0x60:
+  case 0x61:
+  case 0x62:
+  case 0x63:
+  case 0x64:
+  case 0x65:
+  case 0x66:
+  case 0x67:
+  case 0x68:
+  case 0x69:
+  case 0x6A:
+  case 0x6B:
+  case 0x6C:
+  case 0x6D:
+  case 0x6E:
+  case 0x6F:
+  case 0x70:
+  case 0x71:
+  case 0x72:
+  case 0x73:
+  case 0x74:
+  case 0x75:
+  case 0x77:
+  case 0x78:
+  case 0x79:
+  case 0x7A:
+  case 0x7B:
+  case 0x7C:
+  case 0x7D:
+  case 0x7E:
+  case 0x7F: {
+
+    int src = opcode & 0x07;
+    int des = (opcode >> 3) & 0x07;
+
+    int src_index = (src == 7) ? 6 : src;
+    int des_index = (des == 7) ? 6 : des;
+
+    if (src == 6) {
+      cout << "Loading into " << des_index << " from HL " << endl;
+      load8(des_index, reg.hl);
+    } else if (des == 6) {
+      cout << "Loading into HL from " << des_index << endl;
+      load8(reg.hl, src_index);
+    } else {
+      cout << "Loading " << des_index << " from " << src_index << endl;
+      load8(src_index, des_index);
+    }
+    break;
+  }
+
+  // LD r a16, LD r16 A
+  case 0xEA: {
+    cout << "LD [a16] A" << endl;
+    ram.writeByte(nextWord, reg.a);
+    break;
+  }
+  case 0xFA: {
+    cout << "LD A [n16]" << endl;
+    reg.a = ram.readByte(nextWord);
+    break;
+  }
+
+  // LDH [n8] A
+  case 0xE0: {
+    cout << "LD [0xFF00 + n8] A" << endl;
+    ram.writeByte(0xFF00 + nextByte, reg.a);
+    break;
+  }
+  case 0xE2: {
+    cout << "LD [C] A" << endl;
+    ram.writeByte(0xFF00 + reg.c, reg.a);
+    break;
+  }
+
+  // LDH A n8
+  case 0xF0: {
+    cout << "LD A [n8]" << endl;
+    reg.a = ram.readByte(0xFF00 + nextByte);
+    break;
+  }
+  case 0xF2: {
+    cout << "LD A [C]" << endl;
+    reg.a = ram.readByte(0xFF00 + reg.c);
+    break;
+  }
+
+  // LD a16 SP
+  case 0x08: {
+    cout << "LD a16 SP" << endl;
+    ram.writeWord(nextWord, reg.sp);
+    break;
+  }
+
+  // LD HL SP+e8
+  case 0xF8: {
+    cout << "LD HL SP+e8" << endl;
+    uint16_t sp = reg.sp;
+    int8_t offset = static_cast<int8_t>(nextByte);
+    bool hc = ((sp & 0x0f) + (offset & 0x0f)) > 0x0f;
+    bool c = ((sp & 0xff) + (offset & 0xff)) > 0xff;
+    reg.hl = sp + offset;
+    set_flag(4, c);
+    set_flag(5, hc);
+    set_flag(6, 0);
+    set_flag(7, 0);
+    break;
+  }
+
+  // LD SP HL
+  case 0xF9: {
+    cout << "LD SP HL" << endl;
+    reg.sp = reg.hl;
+    break;
+  }
+
+  // POP r16
+  case 0xC1:
+  case 0xD1:
+  case 0xE1:
+  case 0xF1: {
+    int des = (opcode >> 4) & 0x03;
+    if (des == 3) {
+      cout << "POP AF" << endl;
+      popAF();
+    } else {
+      cout << "POP " << des << endl;
+      pop(des);
+    }
+    break;
+  }
+
+  // PUSH r16
+  case 0xC5:
+  case 0xD5:
+  case 0xE5:
+  case 0xF5: {
+    int des = (opcode >> 4) & 0x03;
+    if (des == 3) {
+      cout << "PUSH AF" << endl;
+      pushAF();
+    } else {
+      cout << "PUSH " << des << endl;
+      push(des);
+    }
+    break;
+  }
+
+  // ADD ADC r1, r2
+  case 0x80:
+  case 0x81:
+  case 0x82:
+  case 0x83:
+  case 0x84:
+  case 0x85:
+  case 0x86:
+  case 0x87:
+  case 0x88:
+  case 0x89:
+  case 0x8A:
+  case 0x8B:
+  case 0x8C:
+  case 0x8D:
+  case 0x8E:
+  case 0x8F: {
     int src = opcode & 0x07;
     bool carry = opcode & 0x08;
 
     if (src == 6) {
-      add8(ram.readByte(reg.hl), carry);
+      cout << "ADD A [HL]";
+      add8(-1, carry);
     } else if (src == 7) {
+      cout << "ADD A A";
       add8(6, carry);
     } else {
       add8(src, carry);
+      cout << "ADD A " << src;
     }
-
+    cout << carry << endl;
     break;
   }
-  case 0x9: {
+
+  // ADD ADC A n8
+  case 0xC6: {
+    cout << "ADD A n8" << endl;
+    uint8_t temp = reg.b;
+    reg.b = nextByte;
+    add8(0, 0);
+    reg.b = temp;
+    break;
+  }
+  case 0xCE: {
+    cout << "ADC A n8" << endl;
+    uint8_t temp = reg.b;
+    reg.b = nextByte;
+    add8(0, 1);
+    reg.b = temp;
+    break;
+  }
+
+  // SUB SUBC r1, r2
+  case 0x90:
+  case 0x91:
+  case 0x92:
+  case 0x93:
+  case 0x94:
+  case 0x95:
+  case 0x96:
+  case 0x97:
+  case 0x98:
+  case 0x99:
+  case 0x9A:
+  case 0x9B:
+  case 0x9C:
+  case 0x9D:
+  case 0x9E:
+  case 0x9F: {
     int src = opcode & 0x07;
     bool carry = opcode & 0x08;
 
     if (src == 6) {
-      sub8(ram.readByte(reg.hl), carry);
+      cout << "SUB A [HL]";
+      sub8(-1, carry);
     } else if (src == 7) {
+      cout << "SUB A A";
       sub8(6, carry);
     } else {
+      cout << "SUB A " << src;
       sub8(src, carry);
     }
-
+    cout << carry << endl;
     break;
   }
-  case 0xA: {
+
+  // SUB SBC A n8
+  case 0xD6: {
+    cout << "SUB A n8" << endl;
+    uint8_t temp = reg.b;
+    reg.b = nextByte;
+    sub8(0, 0);
+    reg.b = temp;
+    break;
+  }
+  case 0xDE: {
+    cout << "SBC A n8" << endl;
+    uint8_t temp = reg.b;
+    reg.b = nextByte;
+    sub8(0, 1);
+    reg.b = temp;
+    break;
+  }
+
+  // AND A r1
+  case 0xA0:
+  case 0xA1:
+  case 0xA2:
+  case 0xA3:
+  case 0xA4:
+  case 0xA5:
+  case 0xA6:
+  case 0xA7: {
     int src = opcode & 0x07;
-    bool isXOR = opcode & 0x08;
-    if (isXOR) {
-      if (src == 6) {
-        xor8(ram.readByte(reg.hl));
-      } else if (src == 7) {
-        xor8(6);
-      } else {
-        xor8(src);
-      }
-    } else {
-      if (src == 6) {
-        and8(ram.readByte(reg.hl));
-      } else if (src == 7) {
-        and8(6);
-      } else {
-        and8(src);
-      }
-    }
 
+    if (src == 6) {
+      cout << "AND A [HL]" << endl;
+      and8(-1);
+    } else if (src == 7) {
+      cout << "AND A A" << endl;
+      and8(6);
+    } else {
+      cout << "AND A " << src << endl;
+      and8(src);
+    }
     break;
   }
-  case 0xB: {
 
+    // AND A n8
+  case 0xE6: {
+    cout << "AND A n8" << endl;
+    uint8_t temp = reg.b;
+    reg.b = nextByte;
+    and8(0);
+    reg.b = temp;
+    break;
+  }
+
+  // XOR A r1
+  case 0xA8:
+  case 0xA9:
+  case 0xAA:
+  case 0xAB:
+  case 0xAC:
+  case 0xAD:
+  case 0xAE:
+  case 0xAF: {
     int src = opcode & 0x07;
-    bool isCompare = opcode & 0x08;
-    if (isCompare) {
-      if (src == 6) {
-        compare8(ram.readByte(reg.hl));
-      } else if (src == 7) {
-        compare8(6);
-      } else {
-        compare8(src);
-      }
+
+    if (src == 6) {
+      cout << "XOR A [HL]" << endl;
+      xor8(-1);
+    } else if (src == 7) {
+      cout << "XOR A A" << endl;
+      xor8(6);
     } else {
-      if (src == 6) {
-        or8(ram.readByte(reg.hl));
-      } else if (src == 7) {
-        or8(6);
-      } else {
-        or8(src);
-      }
-    }
-
-    break;
-  }
-  case 0xC: {
-    switch (low) {
-    case 0x0: {
-      if (ret(0)) {
-        pc_shifted = true;
-      }
-      break;
-    }
-    case 0x1: {
-      pop(0);
-      break;
-    }
-    case 0x2: {
-      if (jump(nextWord, 0)) {
-        pc_shifted = true;
-      }
-      break;
-    }
-    case 0x3: {
-      if (jump(nextWord, -1)) {
-        pc_shifted = true;
-      }
-      break;
-    }
-    case 0x4: {
-      if (call(0)) {
-        pc_shifted = true;
-      }
-      break;
-    }
-    case 0x5: {
-      push(0);
-      break;
-    }
-    case 0x6: {
-      add8(nextByte, 0);
-      break;
-    }
-    case 0x7: {
-      rst(0x00);
-      pc_shifted = true;
-      break;
-    }
-    case 0x8: {
-      if (ret(1)) {
-        pc_shifted = true;
-      }
-      break;
-    }
-    case 0x9: {
-      if (ret(-1)) {
-        pc_shifted = true;
-      }
-      break;
-    }
-    case 0xA: {
-      if (jump(nextWord, 1)) {
-        pc_shifted = true;
-      }
-      break;
-    }
-    case 0xB: {
-      uint8_t sub_op = ram.readByte(reg.pc + 1);
-      int sub_low = sub_op & 0x0F;
-      int sub_high = (sub_op & 0xF0) >> 4;
-
-      int index = sub_op & 0x07;
-      bool type2 = sub_op & 0x08;
-
-      if (index == 0x06) {
-        index = -1;
-      } else if (index == 0x07) {
-        index = 6;
-      }
-
-      switch (sub_high) {
-      case 0x0: {
-        if (type2) {
-          rrc8(index);
-        } else {
-          rlc8(index);
-        }
-        break;
-      }
-      case 0x1: {
-        if (type2) {
-          rr8(index);
-        } else {
-          rl8(index);
-        }
-        break;
-      }
-      case 0x2: {
-        if (type2) {
-          sra8(index);
-        } else {
-          sla8(index);
-        }
-        break;
-      }
-      case 0x3: {
-        if (type2) {
-          srl8(index);
-        } else {
-          swap8(index);
-        }
-        break;
-      }
-      case 0x4:
-      case 0x5:
-      case 0x6:
-      case 0x7: {
-        int pos = (sub_high - 0x4) * 2 + type2;
-        bit(index, pos);
-        break;
-      }
-      case 0x8:
-      case 0x9:
-      case 0xA:
-      case 0xB: {
-        int pos = (sub_high - 0x8) * 2 + type2;
-        res(index, pos);
-        break;
-      }
-      case 0xC:
-      case 0xD:
-      case 0xE:
-      case 0xF: {
-        int pos = (sub_high - 0x4) * 2 + type2;
-        set(index, pos);
-        break;
-      }
-      }
-      break;
-    }
-    case 0xC: {
-      if (call(1)) {
-        pc_shifted = true;
-      }
-      break;
-    }
-    case 0xD: {
-      if (call(-1)) {
-        pc_shifted = true;
-      }
-      break;
-    }
-    case 0xE: {
-      add8(nextByte, 1);
-      break;
-    }
-    case 0xF: {
-      rst(0x08);
-      pc_shifted = true;
-      break;
-    }
+      cout << "XOR A " << src << endl;
+      xor8(src);
     }
     break;
   }
-  case 0xD: {
-    switch (low) {
-    case 0x0: {
-      if (ret(2)) {
-        pc_shifted = true;
-      }
-      break;
-    }
-    case 0x1: {
-      pop(1);
-      break;
-    }
-    case 0x2: {
-      if (jump(nextWord, 2)) {
-        pc_shifted = true;
-      }
-      break;
-    }
-    case 0x4: {
-      if (call(2)) {
-        pc_shifted = true;
-      }
-      break;
-    }
-    case 0x5: {
-      push(1);
-      break;
-    }
-    case 0x6: {
-      sub8(nextByte, 0);
-      break;
-    }
-    case 0x7: {
-      rst(0x10);
-      pc_shifted = true;
-      break;
-    }
-    case 0x8: {
-      if (ret(3)) {
-        pc_shifted = true;
-      }
-      break;
-    }
-    case 0x9: {
-      if (ret(-1)) {
-        pc_shifted = true;
-      }
-      ime_clock = 1;
-      break;
-    }
-    case 0xA: {
-      if (jump(nextWord, 3)) {
-        pc_shifted = true;
-      }
-      break;
-    }
-    case 0xC: {
-      if (call(3)) {
-        pc_shifted = true;
-      }
-      break;
-    }
-    case 0xE: {
-      sub8(nextByte, 1);
-      break;
-    }
-    case 0xF: {
-      rst(0x18);
-      pc_shifted = true;
-      break;
-    }
+
+    // XOR A n8
+  case 0xEE: {
+    cout << "XOR A n8" << endl;
+    uint8_t temp = reg.b;
+    reg.b = nextByte;
+    xor8(0);
+    reg.b = temp;
+    break;
+  }
+
+  // OR A r1
+  case 0xB0:
+  case 0xB1:
+  case 0xB2:
+  case 0xB3:
+  case 0xB4:
+  case 0xB5:
+  case 0xB6:
+  case 0xB7: {
+    int src = opcode & 0x07;
+
+    if (src == 6) {
+      cout << "OR A [HL]" << endl;
+      or8(-1);
+    } else if (src == 7) {
+      cout << "OR A A" << endl;
+      or8(6);
+    } else {
+      cout << "OR A " << src << endl;
+      or8(src);
     }
     break;
   }
-  case 0xE: {
-    switch (low) {
-    case 0x0: {
-      load8(static_cast<uint16_t>(0xFF00 + nextByte), 6);
-      break;
-    }
-    case 0x1: {
-      pop(2);
-      break;
-    }
-    case 0x2: {
-      load8(0xFF00 + reg.c, 6);
-      break;
-    }
-    case 0x5: {
-      push(2);
-      break;
-    }
-    case 0x6: {
-      and8(nextByte);
-      break;
-    }
-    case 0x7: {
-      rst(0x20);
-      pc_shifted = true;
-      break;
-    }
-    case 0x8: {
-      addSP(static_cast<int8_t>(nextByte));
-      break;
-    }
-    case 0x9: {
-      if (jump(reg.hl, -1)) {
-        pc_shifted = true;
-      }
-      break;
-    }
-    case 0xA: {
-      load8(nextAddress, 6);
-      break;
-    }
-    case 0xE: {
-      xor8(nextByte);
-      break;
-    }
-    case 0xF: {
-      rst(0x28);
-      pc_shifted = true;
-      break;
-    }
+
+    // OR A n8
+  case 0xF6: {
+    cout << "OR A n8" << endl;
+    uint8_t temp = reg.b;
+    reg.b = nextByte;
+    or8(0);
+    reg.b = temp;
+    break;
+  }
+
+  // CP A r1
+  case 0xB8:
+  case 0xB9:
+  case 0xBA:
+  case 0xBB:
+  case 0xBC:
+  case 0xBD:
+  case 0xBE:
+  case 0xBF: {
+    int src = opcode & 0x07;
+
+    if (src == 6) {
+      cout << "CP A [HL]" << endl;
+      compare8(-1);
+    } else if (src == 7) {
+      cout << "CP A A" << endl;
+      compare8(6);
+    } else {
+      cout << "CP A " << src << endl;
+      compare8(src);
     }
     break;
   }
-  case 0xF: {
-    switch (low) {
-    case 0x0: {
-      load8(6, 0xFF00 + nextByte);
-      break;
-    }
-    case 0x1: {
-      popAF();
-      break;
-    }
-    case 0x2: {
-      load8(6, 0xFF00 + reg.c);
-      break;
-    }
-    case 0x3: {
-      ime = false;
-      break;
-    }
-    case 0x5: {
-      pushAF();
-      break;
-    }
-    case 0x6: {
-      or8(nextByte);
-      break;
-    }
-    case 0x7: {
-      rst(0x30);
+
+  case 0xFE: {
+    cout << "CP A n8" << endl;
+    uint8_t temp = reg.b;
+    reg.b = nextByte;
+    compare8(0);
+    reg.b = temp;
+    break;
+  }
+  // INC r8
+  case 0x04:
+  case 0x14:
+  case 0x24:
+  case 0x34:
+  case 0x0C:
+  case 0x1C:
+  case 0x2C:
+  case 0x3C: {
+    int des = (opcode >> 3) & 0x07;
+    cout << "INC " << des << endl;
+    increment8(des);
+    break;
+  }
+
+  // DEC r8
+  case 0x05:
+  case 0x15:
+  case 0x25:
+  case 0x35:
+  case 0x0D:
+  case 0x1D:
+  case 0x2D:
+  case 0x3D: {
+    int des = (opcode >> 3) & 0x07;
+    cout << "DEC " << des << endl;
+    decrement8(des);
+    break;
+  }
+
+  // SCF
+  case 0x37: {
+    cout << "SCF" << endl;
+    set_flag(4, 1);
+    set_flag(5, 0);
+    set_flag(6, 0);
+    break;
+  }
+
+  // DAA
+  case 0x27: {
+    cout << "DAA" << endl;
+    // NOTE: Implement DAA
+    break;
+  }
+
+  // CPL
+  case 0x2F: {
+    cout << "CPL" << endl;
+    cpl();
+    break;
+  }
+
+  // CCF
+  case 0x3F: {
+    cout << "CCF" << endl;
+    set_flag(4, 0);
+    set_flag(5, 0);
+    set_flag(6, 0);
+    break;
+  }
+
+  // INC r16
+  case 0x03:
+  case 0x13:
+  case 0x23:
+  case 0x33: {
+    int des = (opcode >> 3) & 0x07;
+    cout << "INC " << des << endl;
+    increment16(des);
+    break;
+  }
+
+  // DEC r16
+  case 0x0B:
+  case 0x1B:
+  case 0x2B:
+  case 0x3B: {
+    int des = (opcode >> 3) & 0x07;
+    cout << "DEC " << des << endl;
+    increment16(des);
+    break;
+  }
+
+    // ADD HL r16
+  case 0x09:
+  case 0x19:
+  case 0x29:
+  case 0x39: {
+    int des = (opcode >> 3) & 0x07;
+    cout << "ADD HL " << des << endl;
+    add16(des);
+    break;
+  }
+
+  // ADD SP e8
+  case 0xE8: {
+    cout << "ADD SP e8" << endl;
+    addSP(static_cast<int8_t>(nextByte));
+    break;
+  }
+
+  // JR cc e8
+  case 0x18:
+  case 0x20:
+  case 0x28:
+  case 0x30:
+  case 0x38: {
+    int cc = (opcode == 0x18) ? -1 : (opcode >> 3) & 0x03;
+    cout << "JR " << cc << " e8" << endl;
+    if (rel_jump(static_cast<int8_t>(nextByte), cc)) {
       pc_shifted = true;
-      break;
-    }
-    case 0x8: {
-      int8_t offset = static_cast<int8_t>(nextByte);
-      uint16_t SP = reg.sp;
-      bool HC = (SP & 0x07) + (offset & 0x07) > 0x7;
-      bool C = (SP & 0xFF) + (offset & 0xFF) > 0xFF;
-      reg.hl = reg.sp + offset;
-      set_flag(4, C);
-      set_flag(5, HC);
-      set_flag(6, 0);
-      set_flag(7, 0);
-      break;
-    }
-    case 0x9: {
-      load16(2, 3);
-      break;
-    }
-    case 0xA: {
-      load8(6, nextAddress);
-      break;
-    }
-    case 0xB: {
-      ime_clock = 2;
-      break;
-    }
-    case 0xE: {
-      compare8(nextByte);
-      break;
-    }
-    case 0xF: {
-      rst(0x38);
-      pc_shifted = true;
-      break;
-    }
     }
     break;
+  }
+
+  // JP cc a16
+  case 0xC2:
+  case 0xC3:
+  case 0xCA:
+  case 0xD2:
+  case 0xDA: {
+    int cc = (opcode == 0xC3) ? -1 : (opcode >> 3) & 0x03;
+    cout << "JP " << cc << " a16" << endl;
+    if (jump(nextAddress, cc)) {
+      pc_shifted = true;
+    }
+    cout << pc_shifted << endl;
+    break;
+  }
+
+  // RET cc
+  case 0xC0:
+  case 0xC8:
+  case 0xC9:
+  case 0xD0:
+  case 0xD8: {
+    int cc = (opcode == 0xC9) ? -1 : (opcode >> 3) & 0x03;
+    cout << "RET " << cc << endl;
+    if (ret(cc)) {
+      pc_shifted = true;
+    }
+    break;
+  }
+
+  // RETI
+  case 0xD9: {
+    cout << "RETI" << endl;
+    ret(-1);
+    pc_shifted = true;
+    ime_clock = 1;
+    break;
+  }
+
+  // CALL cc a16
+  case 0xC4:
+  case 0xCC:
+  case 0xCD:
+  case 0xD4:
+  case 0xDC: {
+    int cc = (opcode == 0xCD) ? -1 : (opcode >> 3) & 0x03;
+    cout << "CALL " << cc << " a16" << endl;
+    if (call(cc)) {
+      pc_shifted = true;
+    }
+    break;
+  }
+
+  // RST vec
+  case 0xC7:
+  case 0xD7:
+  case 0xE7:
+  case 0xF7:
+  case 0xCF:
+  case 0xDF:
+  case 0xEF:
+  case 0xFF: {
+    cout << "RST" << endl;
+    uint16_t address = (opcode >> 3) & 0x7;
+    address *= 8;
+    rst(address);
+    pc_shifted = true;
+    break;
+  }
+
+  // NOP
+  case 0x0: {
+    cout << "NOP" << endl;
+    break;
+  }
+
+    // HALT
+  case 0x76: {
+    cout << "HALT" << endl;
+    halted = true;
+    break;
+  }
+
+  // STOP
+  case 0x10: {
+    cout << "STOP" << endl;
+    break;
+  }
+
+  // DI
+  case 0xF3: {
+    cout << "DI" << endl;
+    ime = false;
+    break;
+  }
+
+  // EI
+  case 0xFB: {
+    cout << "EI" << endl;
+    ime_clock = 2;
+    break;
+  }
+
+    // CB prefix:
+  case 0xCB: {
+    cout << "CB" << endl;
+    handle_CB(nextByte);
+    break;
+  }
+
+  default: {
+    printf("Unknow opcode %X\n", opcode);
   }
   }
 
   if (!pc_shifted) {
     reg.pc += pc_increments[high][low];
+    cout << "Shifted PC by " << 0 + pc_increments[high][low] << endl;
     pc_shifted = false;
   }
 
