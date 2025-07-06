@@ -46,8 +46,6 @@ class CPU {
   uint8_t *reg8_pointers[7];
   uint16_t *reg16_pointers[4];
 
-  MMU ram;
-
   const uint8_t pc_increments[16][16] = {
       {1, 3, 1, 1, 1, 1, 2, 1, 3, 1, 1, 1, 1, 1, 2, 1}, // 0x00–0x0F
       {2, 3, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1}, // 0x10–0x1F
@@ -66,6 +64,9 @@ class CPU {
       {2, 1, 2, 1, 0, 1, 2, 1, 3, 1, 3, 1, 3, 1, 3, 1}, // 0xE0–0xEF
       {2, 1, 2, 1, 0, 1, 2, 1, 3, 1, 3, 1, 3, 1, 3, 1}, // 0xF0–0xFF
   };
+
+public:
+  MMU ram;
 
 public:
   CPU();

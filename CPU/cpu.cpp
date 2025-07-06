@@ -1,14 +1,27 @@
 #include "./cpu.hpp"
 #include "utils.hpp"
+#include <bits/stdc++.h>
+#include <iomanip>
+
 using namespace std;
 
 CPU::CPU() {
-  reg.af = 0;
-  reg.bc = 0;
-  reg.de = 0;
-  reg.hl = 0;
-  reg.sp = 0;
-  reg.pc = 0;
+  // reg.af = 0;
+  // reg.bc = 0;
+  // reg.de = 0;
+  // reg.hl = 0;
+  // reg.sp = 0;
+  // reg.pc = 0;
+
+  reg.a = 0x01;
+  reg.b = 0x00;
+  reg.c = 0x13;
+  reg.d = 0x00;
+  reg.e = 0xD8;
+  reg.h = 0x01;
+  reg.l = 0x4D;
+  reg.sp = 0xFFFE;
+  reg.pc = 0x0100;
 
   reg8_pointers[0] = &reg.b;
   reg8_pointers[1] = &reg.c;
@@ -793,7 +806,7 @@ bool CPU::rel_jump(int8_t offset, int cc) {
 
     reg.pc += offset;
   }
-  return true;
+  return run;
 }
 
 bool CPU::call(int cc) {
@@ -906,6 +919,13 @@ void CPU::execute() {
   uint8_t high = (opcode & 0xF0) >> 4;
   uint8_t low = opcode & 0x0F;
 
+  uint16_t nextAddress = reg.pc + 1;
+  uint8_t nextByte = ram.readByte(reg.pc + 1);
+  uint16_t nextWord = ram.readWord(reg.pc + 1);
+
+  printf("PC = %04X: %02X %02X %02X\n", reg.pc, ram.readByte(reg.pc),
+         ram.readByte(reg.pc + 1), ram.readByte(reg.pc + 1));
+  ram.testMemory(reg.pc);
   bool pc_shifted = false;
 
   if (ime_clock > 0) {
@@ -919,7 +939,7 @@ void CPU::execute() {
       break;
     }
     case 0x1: {
-      load16(0, reg.pc + 1);
+      load16(0, nextAddress);
       break;
     }
     case 0x2: {
@@ -939,7 +959,7 @@ void CPU::execute() {
       break;
     }
     case 0x6: {
-      load8(0, ram.readByte(reg.pc + 1));
+      load8(0, nextAddress);
       break;
     }
     case 0x7: {
@@ -950,7 +970,7 @@ void CPU::execute() {
       break;
     }
     case 0x8: {
-      load16(ram.readWord(reg.pc + 1), 3);
+      load16(nextAddress, 3);
       break;
     }
     case 0x9: {
@@ -974,7 +994,7 @@ void CPU::execute() {
       break;
     }
     case 0xE: {
-      load8(1, ram.readByte(reg.pc + 1));
+      load8(1, nextAddress);
       break;
     }
     case 0xF: {
@@ -995,7 +1015,7 @@ void CPU::execute() {
       break;
     }
     case 0x1: {
-      load16(1, reg.pc + 1);
+      load16(1, nextAddress);
       break;
     }
     case 0x2: {
@@ -1015,7 +1035,7 @@ void CPU::execute() {
       break;
     }
     case 0x6: {
-      load8(1, ram.readByte(reg.pc + 1));
+      load8(1, nextAddress);
       break;
     }
     case 0x7: {
@@ -1026,7 +1046,7 @@ void CPU::execute() {
       break;
     }
     case 0x8: {
-      int8_t offset = static_cast<int8_t>(ram.readByte(reg.pc + 1));
+      int8_t offset = static_cast<int8_t>(nextByte);
       if (rel_jump(offset, -1)) {
         pc_shifted = true;
       }
@@ -1053,7 +1073,7 @@ void CPU::execute() {
       break;
     }
     case 0xE: {
-      load8(3, ram.readByte(reg.pc + 1));
+      load8(3, nextAddress);
       break;
     }
     case 0xF: {
@@ -1069,14 +1089,14 @@ void CPU::execute() {
   case 0x2: {
     switch (low) {
     case 0x0: {
-      int8_t offset = static_cast<int8_t>(ram.readByte(reg.pc + 1));
+      int8_t offset = static_cast<int8_t>(nextByte);
       if (rel_jump(offset, 0)) {
         pc_shifted = true;
       }
       break;
     }
     case 0x1: {
-      load16(2, reg.pc + 1);
+      load16(2, nextAddress);
       break;
     }
     case 0x2: {
@@ -1097,7 +1117,7 @@ void CPU::execute() {
       break;
     }
     case 0x6: {
-      load8(4, ram.readByte(reg.pc + 1));
+      load8(4, nextAddress);
       break;
     }
     case 0x7: {
@@ -1105,7 +1125,7 @@ void CPU::execute() {
       break;
     }
     case 0x8: {
-      int8_t offset = static_cast<int8_t>(ram.readByte(reg.pc + 1));
+      int8_t offset = static_cast<int8_t>(nextByte);
       if (rel_jump(offset, 1)) {
         pc_shifted = true;
       }
@@ -1133,7 +1153,7 @@ void CPU::execute() {
       break;
     }
     case 0xE: {
-      load8(5, ram.readByte(reg.pc + 1));
+      load8(5, nextAddress);
       break;
     }
     case 0xF: {
@@ -1146,14 +1166,14 @@ void CPU::execute() {
   case 0x3: {
     switch (low) {
     case 0x0: {
-      int8_t offset = static_cast<int8_t>(ram.readByte(reg.pc + 1));
+      int8_t offset = static_cast<int8_t>(nextByte);
       if (rel_jump(offset, 2)) {
         pc_shifted = true;
       }
       break;
     }
     case 0x1: {
-      load16(3, reg.pc + 1);
+      load16(3, nextAddress);
       break;
     }
     case 0x2: {
@@ -1174,7 +1194,10 @@ void CPU::execute() {
       break;
     }
     case 0x6: {
-      load8(reg.hl, ram.readByte(reg.pc + 1));
+      // This is a address to addres load so i didnt make a separate
+      // function,
+      // one time thing
+      ram.writeByte(reg.hl, nextByte);
       break;
     }
     case 0x7: {
@@ -1184,7 +1207,7 @@ void CPU::execute() {
       break;
     }
     case 0x8: {
-      int8_t offset = static_cast<int8_t>(ram.readByte(reg.pc + 1));
+      int8_t offset = static_cast<int8_t>(nextByte);
       if (rel_jump(offset, 3)) {
         pc_shifted = true;
       }
@@ -1212,7 +1235,7 @@ void CPU::execute() {
       break;
     }
     case 0xE: {
-      load8(6, ram.readByte(reg.pc + 1));
+      load8(6, nextAddress);
       break;
     }
     case 0xF: {
@@ -1342,21 +1365,18 @@ void CPU::execute() {
       break;
     }
     case 0x2: {
-      uint16_t address = ram.readWord(reg.pc + 1);
-      if (jump(address, 0)) {
+      if (jump(nextWord, 0)) {
         pc_shifted = true;
       }
       break;
     }
     case 0x3: {
-      uint16_t address = ram.readWord(reg.pc + 1);
-      if (jump(address, -1)) {
+      if (jump(nextWord, -1)) {
         pc_shifted = true;
       }
       break;
     }
     case 0x4: {
-      uint16_t address = ram.readWord(reg.pc + 1);
       if (call(0)) {
         pc_shifted = true;
       }
@@ -1367,7 +1387,7 @@ void CPU::execute() {
       break;
     }
     case 0x6: {
-      add8(ram.readByte(reg.pc + 1), 0);
+      add8(nextByte, 0);
       break;
     }
     case 0x7: {
@@ -1388,8 +1408,7 @@ void CPU::execute() {
       break;
     }
     case 0xA: {
-      uint16_t address = ram.readWord(reg.pc + 1);
-      if (jump(address, 1)) {
+      if (jump(nextWord, 1)) {
         pc_shifted = true;
       }
       break;
@@ -1481,7 +1500,7 @@ void CPU::execute() {
       break;
     }
     case 0xE: {
-      add8(ram.readByte(reg.pc + 1), 1);
+      add8(nextByte, 1);
       break;
     }
     case 0xF: {
@@ -1505,8 +1524,7 @@ void CPU::execute() {
       break;
     }
     case 0x2: {
-      uint16_t address = ram.readWord(reg.pc + 1);
-      if (jump(address, 2)) {
+      if (jump(nextWord, 2)) {
         pc_shifted = true;
       }
       break;
@@ -1522,7 +1540,7 @@ void CPU::execute() {
       break;
     }
     case 0x6: {
-      sub8(ram.readByte(reg.pc + 1), 0);
+      sub8(nextByte, 0);
       break;
     }
     case 0x7: {
@@ -1544,8 +1562,7 @@ void CPU::execute() {
       break;
     }
     case 0xA: {
-      uint16_t address = ram.readWord(reg.pc + 1);
-      if (jump(address, 3)) {
+      if (jump(nextWord, 3)) {
         pc_shifted = true;
       }
       break;
@@ -1557,7 +1574,7 @@ void CPU::execute() {
       break;
     }
     case 0xE: {
-      sub8(ram.readByte(reg.pc + 1), 1);
+      sub8(nextByte, 1);
       break;
     }
     case 0xF: {
@@ -1571,8 +1588,7 @@ void CPU::execute() {
   case 0xE: {
     switch (low) {
     case 0x0: {
-      uint8_t n = ram.readByte(reg.pc + 1);
-      load8(0xFF00 + n, 6);
+      load8(static_cast<uint16_t>(0xFF00 + nextByte), 6);
       break;
     }
     case 0x1: {
@@ -1588,7 +1604,7 @@ void CPU::execute() {
       break;
     }
     case 0x6: {
-      and8(ram.readByte(reg.pc + 1));
+      and8(nextByte);
       break;
     }
     case 0x7: {
@@ -1597,8 +1613,7 @@ void CPU::execute() {
       break;
     }
     case 0x8: {
-      uint8_t offset = ram.readByte(reg.pc + 1);
-      addSP(static_cast<int8_t>(offset));
+      addSP(static_cast<int8_t>(nextByte));
       break;
     }
     case 0x9: {
@@ -1608,11 +1623,11 @@ void CPU::execute() {
       break;
     }
     case 0xA: {
-      load8(ram.readWord(reg.pc + 1), 6);
+      load8(nextAddress, 6);
       break;
     }
     case 0xE: {
-      xor8(ram.readByte(reg.pc + 1));
+      xor8(nextByte);
       break;
     }
     case 0xF: {
@@ -1626,8 +1641,7 @@ void CPU::execute() {
   case 0xF: {
     switch (low) {
     case 0x0: {
-      uint8_t n = ram.readByte(reg.pc + 1);
-      load8(6, 0xFF00 + n);
+      load8(6, 0xFF00 + nextByte);
       break;
     }
     case 0x1: {
@@ -1647,7 +1661,7 @@ void CPU::execute() {
       break;
     }
     case 0x6: {
-      or8(ram.readByte(reg.pc + 1));
+      or8(nextByte);
       break;
     }
     case 0x7: {
@@ -1656,7 +1670,7 @@ void CPU::execute() {
       break;
     }
     case 0x8: {
-      int8_t offset = static_cast<int8_t>(ram.readByte(reg.pc + 1));
+      int8_t offset = static_cast<int8_t>(nextByte);
       uint16_t SP = reg.sp;
       bool HC = (SP & 0x07) + (offset & 0x07) > 0x7;
       bool C = (SP & 0xFF) + (offset & 0xFF) > 0xFF;
@@ -1672,7 +1686,7 @@ void CPU::execute() {
       break;
     }
     case 0xA: {
-      load8(6, ram.readWord(reg.pc + 1));
+      load8(6, nextAddress);
       break;
     }
     case 0xB: {
@@ -1680,7 +1694,7 @@ void CPU::execute() {
       break;
     }
     case 0xE: {
-      compare8(ram.readByte(reg.pc + 1));
+      compare8(nextByte);
       break;
     }
     case 0xF: {
@@ -1695,6 +1709,7 @@ void CPU::execute() {
 
   if (!pc_shifted) {
     reg.pc += pc_increments[high][low];
+    pc_shifted = false;
   }
 
   if (ime_clock == 1) {
