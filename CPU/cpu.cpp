@@ -6,12 +6,12 @@
 using namespace std;
 
 CPU::CPU() {
-  // reg.af = 0;
-  // reg.bc = 0;
-  // reg.de = 0;
-  // reg.hl = 0;
-  // reg.sp = 0;
-  // reg.pc = 0;
+  reg.af = 0;
+  reg.bc = 0;
+  reg.de = 0;
+  reg.hl = 0;
+  reg.sp = 0;
+  reg.pc = 0;
 
   reg.a = 0x01;
   reg.b = 0x00;
@@ -1432,6 +1432,14 @@ void CPU::execute() {
       pc_shifted = true;
     }
     cout << pc_shifted << endl;
+    break;
+  }
+
+  // JP HL
+  case 0xE9: {
+    if (jump(reg.hl, -1)) {
+      pc_shifted = true;
+    }
     break;
   }
 

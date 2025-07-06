@@ -44,7 +44,10 @@ int main() {
   CPU gb;
 
   char *filename = "./01-special.gb";
-  gb.ram.loadROM(filename);
+  if (!gb.ram.loadROM(filename)) {
+    cout << "Failed";
+    return -1;
+  }
   char rand;
   while (true) {
     gb.execute();

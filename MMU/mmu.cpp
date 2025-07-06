@@ -25,6 +25,11 @@ bool MMU::loadROM(char *filename) {
   } else {
     return false;
   }
+
+  cout << "ROM Loaded. First few bytes:\n";
+  for (int i = 0; i < 8; i++) {
+    printf("0x%04X: 0x%02X\n", i, memory[i]);
+  }
   return true;
 }
 
