@@ -1,27 +1,32 @@
 #include "./cpu.hpp"
 #include "utils.hpp"
 #include <bits/stdc++.h>
+#include <cstdint>
+#include <format>
 #include <iomanip>
+
+#include <fstream>
+#include <string>
 
 using namespace std;
 
 CPU::CPU() {
-  reg.af = 0;
-  reg.bc = 0;
-  reg.de = 0;
-  reg.hl = 0;
-  reg.sp = 0;
-  reg.pc = 0;
-
-  reg.a = 0x01;
-  reg.b = 0x00;
-  reg.c = 0x13;
-  reg.d = 0x00;
-  reg.e = 0xD8;
-  reg.h = 0x01;
-  reg.l = 0x4D;
+  reg.af = 0x01B0;
+  reg.bc = 0x0013;
+  reg.de = 0x00D8;
+  reg.hl = 0x014D;
   reg.sp = 0xFFFE;
   reg.pc = 0x0100;
+
+  // reg.a = 0x01;
+  // reg.b = 0x00;
+  // reg.c = 0x13;
+  // reg.d = 0x00;
+  // reg.e = 0xD8;
+  // reg.h = 0x01;
+  // reg.l = 0x4D;
+  // reg.sp = 0xFFFE;
+  // reg.pc = 0x0100;
 
   reg8_pointers[0] = &reg.b;
   reg8_pointers[1] = &reg.c;
@@ -38,22 +43,43 @@ CPU::CPU() {
 }
 
 void CPU::print_reg() {
-  cout << "f" << "\t\t" << "a" << "\t\t" << "af" << endl;
-  cout << bitset<8>(reg.f) << "\t" << bitset<8>(reg.a) << "\t"
-       << bitset<16>(reg.af) << endl;
-  cout << "c" << "\t\t" << "b" << "\t\t" << "bc" << endl;
-  cout << bitset<8>(reg.c) << "\t" << bitset<8>(reg.b) << "\t"
-       << bitset<16>(reg.bc) << endl;
-  cout << "e" << "\t\t" << "d" << "\t\t" << "de" << endl;
-  cout << bitset<8>(reg.e) << "\t" << bitset<8>(reg.d) << "\t"
-       << bitset<16>(reg.de) << endl;
-  cout << "l" << "\t\t" << "h" << "\t\t" << "hl" << endl;
-  cout << bitset<8>(reg.l) << "\t" << bitset<8>(reg.h) << "\t"
-       << bitset<16>(reg.hl) << endl;
-  cout << "sp" << endl;
-  cout << bitset<16>(reg.sp) << endl;
-  cout << "pc" << endl;
-  cout << bitset<16>(reg.pc) << endl;
+  stringstream ss;
+  ss << std::uppercase << std::hex << std::setfill('0') << "PC: 0x"
+     << std::setw(4) << get_reg16(-1) << "\n"
+     << "AF: 0x" << std::setw(4) << get_reg16(4) << "\n"
+     << "BC: 0x" << std::setw(4) << get_reg16(0) << "\n"
+     << "DE: 0x" << std::setw(4) << get_reg16(1) << "\n"
+     << "HL: 0x" << std::setw(4) << get_reg16(2) << "\n"
+     << "SP: 0x" << std::setw(4) << get_reg16(3) << "\n";
+  cout << ss.str().c_str() << endl;
+}
+
+uint16_t CPU::get_reg16(int index) {
+  switch (index) {
+  case -1:
+    return reg.pc;
+  case 0:
+  case 1:
+  case 2:
+  case 3:
+    return *reg16_pointers[index];
+  case 4:
+    return reg.af;
+  }
+}
+uint8_t CPU::get_reg8(int index) {
+  switch (index) {
+  case -1:
+    return reg.f;
+  case 0:
+  case 1:
+  case 2:
+  case 3:
+  case 4:
+  case 5:
+  case 6:
+    return *reg8_pointers[index];
+  }
 }
 
 void CPU::set_flag(uint8_t flag, uint8_t val) {
@@ -85,35 +111,25 @@ bool CPU::get_flag(uint8_t flag) {
 }
 
 uint8_t CPU::get_operand8(int index) {
-  return (index >= 0) ? *reg8_pointers[index] : ram.readByte(reg.hl);
+  if (index == -1) {
+    return ram.readByte(reg.hl);
+  } else if (index == 7) {
+    return *reg8_pointers[6];
+  } else {
+    return *reg8_pointers[index];
+  }
 }
 
 void CPU::load8(int des_index, int src_index) {
-
-  if (!inRange(src_index, 0, 6) && !inRange(des_index, 0, 6)) {
-    cout << "Invalid src/des index for loading: " << src_index << " "
-         << des_index << endl;
-    return;
-  }
 
   *reg8_pointers[des_index] = *reg8_pointers[src_index];
 }
 
 void CPU::load8(int index, uint16_t address) {
 
-  if (!inRange(index, 0, 6)) {
-    cout << "Invalid index for setting register(8) from address: " << index
-         << endl;
-    return;
-  }
   *reg8_pointers[index] = ram.readByte(address);
 }
 void CPU::load8(uint16_t address, int index) {
-  if (!inRange(index, 0, 6)) {
-    cout << "Invalid index for setting address from register(8): " << index
-         << endl;
-    return;
-  }
   ram.writeByte(address, *reg8_pointers[index]);
 }
 
@@ -149,16 +165,34 @@ void CPU::add8(int index, bool carry) {
   set_flag(6, 0);
   set_flag(7, *reg8_pointers[6] == 0);
 }
+// void CPU::sub8(int index, bool carry) {
+//   int A = *reg8_pointers[6];
+//
+//   int value = get_operand8(index);
+//   int car = carry ? get_flag(4) : 0;
+//
+//   bool HC = (A & 0x0F) < ((value + car) & 0x0F);
+//   bool C = A < (value + car);
+//
+//   uint8_t result = static_cast<uint8_t>(A - value - car);
+//   *reg8_pointers[6] = result;
+//
+//   set_flag(4, C);
+//   set_flag(5, HC);
+//   set_flag(6, 1);
+//   set_flag(7, result == 0);
+// }
 void CPU::sub8(int index, bool carry) {
   uint8_t A = *reg8_pointers[6];
-
   uint8_t value = get_operand8(index);
-  value += carry ? get_flag(4) : 0;
+  uint8_t car = carry ? get_flag(4) : 0;
 
-  bool HC = (A & 0x0F) < (value & 0x0F);
-  bool C = A < value;
+  uint16_t total = value + car;
+  uint8_t result = A - total;
 
-  uint8_t result = A - value;
+  bool HC = ((A ^ value ^ result) & 0x10) != 0;
+  bool C = A < total;
+
   *reg8_pointers[6] = result;
 
   set_flag(4, C);
@@ -229,37 +263,21 @@ void CPU::increment8(int index) {
   set_flag(7, Z);
   if (index == -1) {
     ram.writeByte(reg.hl, result);
+  } else if (index == 7) {
+
+    *reg8_pointers[6] = result;
   } else {
     *reg8_pointers[index] = result;
   }
 }
 
-void CPU::decrement8(int index) {
-
-  uint8_t value = get_operand8(index);
-  uint8_t result = value - 1;
-  bool HC = (value & 0xF) == 0;
-  bool Z = result == 0;
-
-  set_flag(5, HC);
-  set_flag(6, 1);
-  set_flag(7, Z);
-  if (index == -1) {
-    ram.writeByte(reg.hl, result);
-  } else {
-    *reg8_pointers[index] = result;
-  }
-}
+void CPU::decrement8(int index) {}
 
 void CPU::add16(int index) {
-  if (!inRange(index, 0, 3)) {
-    cout << "Invalid index for add register16 : " << index << endl;
-    return;
-  }
   uint16_t value = *reg16_pointers[index];
   uint16_t HL = *reg16_pointers[2];
 
-  bool HC = (HL & 0x0FFF) + (value & 0x0FFF) > 0x0FFF;
+  bool HC = (HL & 0x07FF) + (value & 0x07FF) > 0x07FF;
   bool C = (HL + value) > 0xFFFF;
 
   *reg16_pointers[2] = HL + value;
@@ -269,23 +287,9 @@ void CPU::add16(int index) {
   set_flag(6, 0);
 }
 
-void CPU::increment16(int index) {
+void CPU::increment16(int index) { *reg16_pointers[index] += 1; }
 
-  if (!inRange(index, 0, 2)) {
-    cout << "Invalid index for increment register16 : " << index << endl;
-    return;
-  }
-  *reg16_pointers[index] += 1;
-}
-
-void CPU::decrement16(int index) {
-
-  if (!inRange(index, 0, 2)) {
-    cout << "Invalid index for decrement register16 : " << index << endl;
-    return;
-  }
-  *reg16_pointers[index] -= 1;
-}
+void CPU::decrement16(int index) { *reg16_pointers[index] -= 1; }
 
 void CPU::cpl() {
   *reg8_pointers[6] = ~(*reg8_pointers[6]);
@@ -359,7 +363,7 @@ void CPU::handle_CB(uint8_t sub_op) {
   case 0xD:
   case 0xE:
   case 0xF: {
-    int pos = (sub_high - 0x4) * 2 + type2;
+    int pos = (sub_high - 0xC) * 2 + type2;
     set(index, pos);
     break;
   }
@@ -450,9 +454,7 @@ void CPU::rlc8(int index) {
     set_flag(7, value == 0);
 
     ram.writeByte(reg.hl, value);
-  } else
-
-  {
+  } else {
     uint8_t value = *reg8_pointers[index];
 
     bool C = value >> 7;
@@ -678,7 +680,7 @@ bool CPU::rel_jump(int8_t offset, int cc) {
   }
   if (run) {
 
-    reg.pc += offset;
+    reg.pc += 2 + offset;
   }
   return run;
 }
@@ -864,7 +866,7 @@ void CPU::execute() {
     break;
   }
 
-  // LD r n8
+  // LD r8 n8
   case 0x06:
   case 0x16:
   case 0x26:
@@ -874,13 +876,16 @@ void CPU::execute() {
   case 0x2E:
   case 0x3E: {
     int des = (opcode >> 3) & 0x07;
-    int des_index = (des == 7) ? 6 : des;
-    if (des == 6) {
+
+    if (des == 7) {
+      cout << "LD A n8" << endl;
+      load8(6, nextAddress);
+    } else if (des == 6) {
       cout << "LD [HL] n8" << endl;
       ram.writeByte(reg.hl, ram.readByte(nextAddress));
     } else {
-      cout << "LD " << des_index << " n8" << endl;
-      load8(des_index, nextAddress);
+      cout << "LD " << des << " n8" << endl;
+      load8(des, nextAddress);
     }
     break;
   }
@@ -964,7 +969,7 @@ void CPU::execute() {
       load8(reg.hl, src_index);
     } else {
       cout << "Loading " << des_index << " from " << src_index << endl;
-      load8(src_index, des_index);
+      load8(des_index, src_index);
     }
     break;
   }
@@ -1136,7 +1141,10 @@ void CPU::execute() {
   case 0x9E:
   case 0x9F: {
     int src = opcode & 0x07;
-    bool carry = opcode & 0x08;
+    bool carry = (opcode & 0x08) > 0;
+    cout << carry << ":carry " << src << endl;
+
+    stringstream ss;
 
     if (src == 6) {
       cout << "SUB A [HL]";
@@ -1148,11 +1156,12 @@ void CPU::execute() {
       cout << "SUB A " << src;
       sub8(src, carry);
     }
+
     cout << carry << endl;
     break;
   }
 
-  // SUB SBC A n8
+  //  SUB A n8
   case 0xD6: {
     cout << "SUB A n8" << endl;
     uint8_t temp = reg.b;
@@ -1161,6 +1170,7 @@ void CPU::execute() {
     reg.b = temp;
     break;
   }
+  //  SBC A n8
   case 0xDE: {
     cout << "SBC A n8" << endl;
     uint8_t temp = reg.b;
@@ -1308,14 +1318,40 @@ void CPU::execute() {
   case 0x04:
   case 0x14:
   case 0x24:
-  case 0x34:
   case 0x0C:
   case 0x1C:
   case 0x2C:
   case 0x3C: {
     int des = (opcode >> 3) & 0x07;
+    des = (des == 7) ? 6 : des;
     cout << "INC " << des << endl;
-    increment8(des);
+
+    uint8_t value = *reg8_pointers[des];
+    uint8_t result = value + 1;
+    bool HC = (value & 0x0F) + 1 > 0x0F;
+    bool Z = result == 0;
+
+    set_flag(5, HC);
+    set_flag(6, 0);
+    set_flag(7, Z);
+    *reg8_pointers[des] = result;
+    break;
+  }
+  case 0x34: {
+    int des = (opcode >> 3) & 0x07;
+    des = (des == 7) ? 6 : des;
+    cout << "INC " << des << endl;
+
+    uint8_t value = ram.readByte(reg.hl);
+    uint8_t result = value + 1;
+    bool HC = (value & 0x07) == 0x07;
+    bool Z = result == 0;
+
+    set_flag(5, HC);
+    set_flag(6, 0);
+    set_flag(7, Z);
+
+    ram.writeByte(reg.hl, result);
     break;
   }
 
@@ -1323,14 +1359,41 @@ void CPU::execute() {
   case 0x05:
   case 0x15:
   case 0x25:
-  case 0x35:
   case 0x0D:
   case 0x1D:
   case 0x2D:
   case 0x3D: {
     int des = (opcode >> 3) & 0x07;
+    des = (des == 7) ? 6 : des;
     cout << "DEC " << des << endl;
-    decrement8(des);
+
+    uint8_t value = *reg8_pointers[des];
+    uint8_t result = value - 1;
+    bool HC = (value & 0xF) == 0;
+    bool Z = result == 0;
+
+    set_flag(5, HC);
+    set_flag(6, 1);
+    set_flag(7, Z);
+    *reg8_pointers[des] = result;
+    break;
+  }
+
+  case 0x35: {
+    int des = (opcode >> 3) & 0x07;
+    des = (des == 7) ? 6 : des;
+    cout << "DEC " << des << endl;
+
+    uint8_t value = ram.readByte(reg.hl);
+    uint8_t result = value - 1;
+    bool HC = (value & 0xF) == 0;
+    bool Z = result == 0;
+
+    set_flag(5, HC);
+    set_flag(6, 1);
+    set_flag(7, Z);
+
+    ram.writeByte(reg.hl, result);
     break;
   }
 
@@ -1343,10 +1406,35 @@ void CPU::execute() {
     break;
   }
 
-  // DAA
+    // DAA
   case 0x27: {
     cout << "DAA" << endl;
-    // NOTE: Implement DAA
+
+    uint8_t adj = 0;
+    bool n = get_flag(6); // N flag (Subtract)
+    bool h = get_flag(5); // H flag (Half Carry)
+    bool c = get_flag(4); // C flag (Carry)
+
+    if (!n) {
+      if (c || reg.a > 0x99) {
+        adj += 0x60;
+        c = 1;
+      }
+      if (h || (reg.a & 0x0F) > 0x09) {
+        adj += 0x06;
+      }
+      reg.a += adj;
+    } else {
+      if (c)
+        adj |= 0x60;
+      if (h)
+        adj |= 0x06;
+      reg.a -= adj;
+    }
+
+    set_flag(7, reg.a == 0); // Z
+    set_flag(5, 0);          // H cleared
+    set_flag(4, c);          // C updated
     break;
   }
 
@@ -1360,7 +1448,7 @@ void CPU::execute() {
   // CCF
   case 0x3F: {
     cout << "CCF" << endl;
-    set_flag(4, 0);
+    set_flag(4, !get_flag(4));
     set_flag(5, 0);
     set_flag(6, 0);
     break;
@@ -1371,7 +1459,7 @@ void CPU::execute() {
   case 0x13:
   case 0x23:
   case 0x33: {
-    int des = (opcode >> 3) & 0x07;
+    int des = (opcode >> 4) & 0x03;
     cout << "INC " << des << endl;
     increment16(des);
     break;
@@ -1382,7 +1470,7 @@ void CPU::execute() {
   case 0x1B:
   case 0x2B:
   case 0x3B: {
-    int des = (opcode >> 3) & 0x07;
+    int des = (opcode >> 4) & 0x03;
     cout << "DEC " << des << endl;
     decrement16(des);
     break;
@@ -1393,7 +1481,7 @@ void CPU::execute() {
   case 0x19:
   case 0x29:
   case 0x39: {
-    int des = (opcode >> 3) & 0x07;
+    int des = (opcode >> 4) & 0x03;
     cout << "ADD HL " << des << endl;
     add16(des);
     break;
@@ -1427,8 +1515,9 @@ void CPU::execute() {
   case 0xD2:
   case 0xDA: {
     int cc = (opcode == 0xC3) ? -1 : (opcode >> 3) & 0x03;
-    cout << "JP " << cc << " a16" << endl;
-    if (jump(nextAddress, cc)) {
+    cout << "JP " << cc << " a16";
+    printf(" %4X\n", nextWord);
+    if (jump(nextWord, cc)) {
       pc_shifted = true;
     }
     cout << pc_shifted << endl;
@@ -1489,10 +1578,14 @@ void CPU::execute() {
   case 0xDF:
   case 0xEF:
   case 0xFF: {
-    cout << "RST" << endl;
     uint16_t address = (opcode >> 3) & 0x7;
     address *= 8;
-    rst(address);
+    printf("RST 0x%4X\n", address);
+    reg.sp -= 1;
+    ram.writeByte(reg.sp, (nextAddress >> 8));
+    reg.sp -= 1;
+    ram.writeByte(reg.sp, (nextAddress & 0x00FF));
+    reg.pc = address;
     pc_shifted = true;
     break;
   }
@@ -1534,6 +1627,67 @@ void CPU::execute() {
   case 0xCB: {
     cout << "CB" << endl;
     handle_CB(nextByte);
+    break;
+  }
+  case 0x07: {
+
+    cout << "RLCA" << endl;
+    uint8_t value = *reg8_pointers[6];
+
+    bool C = value >> 7;
+    value = (value << 1) | C;
+
+    set_flag(4, C);
+    set_flag(5, 0);
+    set_flag(6, 0);
+    set_flag(7, 0);
+
+    *reg8_pointers[6] = value;
+    break;
+  }
+  case 0x0F: {
+    cout << "RRCA" << endl;
+    uint8_t value = *reg8_pointers[6];
+
+    bool c = value & 0x1;
+    value = (value >> 1) | (c << 7);
+
+    set_flag(4, c);
+    set_flag(5, 0);
+    set_flag(6, 0);
+    set_flag(7, 0);
+
+    *reg8_pointers[6] = value;
+    break;
+  }
+  case 0x17: {
+    cout << "RLA" << endl;
+    uint8_t value = *reg8_pointers[6];
+
+    bool c = value >> 7;
+    value = (value << 1) | get_flag(4);
+
+    set_flag(4, c);
+    set_flag(5, 0);
+    set_flag(6, 0);
+    set_flag(7, 0);
+
+    *reg8_pointers[6] = value;
+    break;
+  }
+  case 0x1F: {
+    cout << "RRA" << endl;
+    uint8_t value = *reg8_pointers[6];
+
+    bool c = value & 0x1;
+    value = (value >> 1) | (get_flag(4) << 7);
+
+    set_flag(4, c);
+    set_flag(5, 0);
+    set_flag(6, 0);
+    set_flag(7, 0);
+
+    *reg8_pointers[6] = value;
     break;
   }
 

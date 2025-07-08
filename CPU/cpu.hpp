@@ -3,6 +3,7 @@
 
 #include "../MMU/mmu.hpp"
 #include <bits/stdc++.h>
+using namespace std;
 
 class CPU {
   struct {
@@ -59,10 +60,10 @@ class CPU {
       {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, // 0x90–0x9F
       {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, // 0xA0–0xAF
       {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, // 0xB0–0xBF
-      {1, 1, 3, 1, 3, 1, 2, 1, 1, 1, 3, 2, 3, 1, 2, 1}, // 0xC0–0xCF
+      {1, 1, 3, 3, 3, 1, 2, 1, 1, 1, 3, 2, 3, 3, 2, 1}, // 0xC0–0xCF
       {1, 1, 3, 1, 3, 1, 2, 1, 1, 1, 3, 1, 3, 1, 2, 1}, // 0xD0–0xDF
-      {2, 1, 2, 1, 0, 1, 2, 1, 3, 1, 3, 1, 3, 1, 3, 1}, // 0xE0–0xEF
-      {2, 1, 2, 1, 0, 1, 2, 1, 3, 1, 3, 1, 3, 1, 3, 1}, // 0xF0–0xFF
+      {2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 3, 1, 1, 1, 2, 1}, // 0xE0–0xEF
+      {2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 3, 1, 1, 1, 2, 1}, // 0xF0–0xFF
   };
 
 public:
@@ -72,19 +73,14 @@ public:
   CPU();
 
   void print_reg();
+  uint16_t get_reg16(int index);
+  uint8_t get_reg8(int index);
   uint8_t get_operand8(int index);
 
   // Functions for setting and getting flags
 
   void set_flag(uint8_t flag, uint8_t val);
   bool get_flag(uint8_t flag);
-
-  // Functions for setting and getting registers
-  void set_reg8(int index, uint8_t value);
-  uint8_t get_reg8(int index);
-
-  void set_reg16(int index, uint16_t value);
-  uint16_t get_reg16(int index);
 
   // Functions for loading
   void load8(int des_index, int src_index);
@@ -105,6 +101,8 @@ public:
   void decrement8(int index);
 
   void increment8(int index);
+
+  void DAA();
 
   // Functions for 16 bit arithematic
   void add16(int index);

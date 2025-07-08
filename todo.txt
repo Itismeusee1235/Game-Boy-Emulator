@@ -1,0 +1,4 @@
+Clean Up CPU code
+Add register checks
+Add memory checks to prevent access into roms
+

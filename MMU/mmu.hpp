@@ -25,6 +25,7 @@ public:
               << std::bitset<8>(readByte(index)) << " "
               << std::bitset<16>(readWord(index)) << std::endl;
   }
+  void printMem();
 };
 
 #endif
