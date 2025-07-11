@@ -18,16 +18,6 @@ CPU::CPU() {
   reg.sp = 0xFFFE;
   reg.pc = 0x0100;
 
-  // reg.a = 0x01;
-  // reg.b = 0x00;
-  // reg.c = 0x13;
-  // reg.d = 0x00;
-  // reg.e = 0xD8;
-  // reg.h = 0x01;
-  // reg.l = 0x4D;
-  // reg.sp = 0xFFFE;
-  // reg.pc = 0x0100;
-
   reg8_pointers[0] = &reg.b;
   reg8_pointers[1] = &reg.c;
   reg8_pointers[2] = &reg.d;
@@ -118,31 +108,6 @@ uint8_t CPU::get_operand8(int index) {
   } else {
     return *reg8_pointers[index];
   }
-}
-
-void CPU::load8(int des_index, int src_index) {
-
-  *reg8_pointers[des_index] = *reg8_pointers[src_index];
-}
-
-void CPU::load8(int index, uint16_t address) {
-
-  *reg8_pointers[index] = ram.readByte(address);
-}
-void CPU::load8(uint16_t address, int index) {
-  ram.writeByte(address, *reg8_pointers[index]);
-}
-
-void CPU::load16(int des_index, int src_index) {
-
-  *reg16_pointers[des_index] = *reg16_pointers[src_index];
-}
-void CPU::load16(int index, uint16_t address) {
-
-  *reg16_pointers[index] = ram.readWord(address);
-}
-void CPU::load16(uint16_t address, int index) {
-  ram.writeWord(address, *reg16_pointers[index]);
 }
 
 void CPU::add8(int index, bool carry) {
@@ -789,7 +754,7 @@ void CPU::pushAF() {
   ram.writeByte(reg.sp, low);
 }
 
-void CPU::execute() {
+int CPU::execute() {
 
   bool pc_shifted = false;
 
@@ -800,8 +765,8 @@ void CPU::execute() {
   uint8_t low = opcode & 0x0F;
 
   uint16_t nextAddress = reg.pc + 1;
-  uint8_t nextByte = ram.readByte(reg.pc + 1);
-  uint16_t nextWord = ram.readWord(reg.pc + 1);
+  uint8_t nextByte = ram.readByte(nextAddress);
+  uint16_t nextWord = ram.readWord(nextAddress);
 
   printf("\nPC = %04X: %02X %02X %04X\n", reg.pc, ram.readByte(reg.pc),
          ram.readByte(reg.pc + 1), ram.readWord(reg.pc + 1));
@@ -820,7 +785,7 @@ void CPU::execute() {
   case 0x31: {
     int des = (opcode >> 4) & 0x03;
     cout << "LD " << des << " n16" << endl;
-    load16(des, nextAddress);
+    *reg16_pointers[des] = ram.readWord(nextAddress);
     break;
   }
 
@@ -879,13 +844,13 @@ void CPU::execute() {
 
     if (des == 7) {
       cout << "LD A n8" << endl;
-      load8(6, nextAddress);
+      reg.a = nextByte;
     } else if (des == 6) {
       cout << "LD [HL] n8" << endl;
-      ram.writeByte(reg.hl, ram.readByte(nextAddress));
+      ram.writeByte(reg.hl, nextByte);
     } else {
       cout << "LD " << des << " n8" << endl;
-      load8(des, nextAddress);
+      *reg8_pointers[des] = nextByte;
     }
     break;
   }
@@ -963,13 +928,13 @@ void CPU::execute() {
 
     if (src == 6) {
       cout << "Loading into " << des_index << " from HL " << endl;
-      load8(des_index, reg.hl);
+      *reg8_pointers[des_index] = ram.readByte(reg.hl);
     } else if (des == 6) {
       cout << "Loading into HL from " << des_index << endl;
-      load8(reg.hl, src_index);
+      ram.writeByte(reg.hl, *reg8_pointers[src_index]);
     } else {
       cout << "Loading " << des_index << " from " << src_index << endl;
-      load8(des_index, src_index);
+      *reg8_pointers[des_index] = *reg8_pointers[src_index];
     }
     break;
   }
@@ -1696,14 +1661,23 @@ void CPU::execute() {
   }
   }
 
-  if (!pc_shifted) {
-    reg.pc += pc_increments[high][low];
-    cout << "Shifted PC by " << 0 + pc_increments[high][low] << endl;
-    pc_shifted = false;
-  }
-
   if (ime_clock == 1) {
     ime = true;
     ime_clock = 0;
   }
+  int index = (opcode >> 4) * 0x10 + (opcode & 0x0F);
+
+  if (opcode == 0xCB) {
+    int nex_index = (nextByte >> 4) * 0x10 + (nextByte & 0x0F);
+    return cycles[1][nex_index];
+  }
+
+  if (!pc_shifted) {
+    reg.pc += pc_increments[high][low];
+    cout << "Shifted PC by " << 0 + pc_increments[high][low] << endl;
+    pc_shifted = false;
+    return cycles[2][index];
+  }
+
+  return cycles[0][index];
 }
