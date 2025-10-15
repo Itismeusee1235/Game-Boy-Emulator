@@ -10,7 +10,7 @@
 
 using namespace std;
 
-CPU::CPU() {
+CPU::CPU(MMU &mmu) : ram(mmu) {
   reg.af = 0x01B0;
   reg.bc = 0x0013;
   reg.de = 0x00D8;
@@ -1667,17 +1667,22 @@ int CPU::execute() {
   }
   int index = (opcode >> 4) * 0x10 + (opcode & 0x0F);
 
+  int cyc_x = 0;
+  int cyc_y = index;
+
   if (opcode == 0xCB) {
     int nex_index = (nextByte >> 4) * 0x10 + (nextByte & 0x0F);
-    return cycles[1][nex_index];
+    cyc_x = 1;
+    cyc_y = nex_index;
   }
 
   if (!pc_shifted) {
     reg.pc += pc_increments[high][low];
     cout << "Shifted PC by " << 0 + pc_increments[high][low] << endl;
     pc_shifted = false;
-    return cycles[2][index];
+    cyc_x = 2;
+    cyc_x = index;
   }
 
-  return cycles[0][index];
+  return cycles[cyc_x][cyc_y];
 }

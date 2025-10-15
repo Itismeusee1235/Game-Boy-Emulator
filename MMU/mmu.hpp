@@ -11,7 +11,7 @@ class MMU {
 public:
   MMU();
 
-  bool loadROM(char *filename);
+  bool loadROM(const char *filename);
 
   uint8_t readByte(uint16_t address);
   uint16_t readWord(uint16_t address);

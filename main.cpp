@@ -22,8 +22,10 @@ void update_ly_fake(MMU &m) {
 
 int main() {
 
-  CPU gb;
-  gb.ram.loadROM("./TestROMS/11-op a,(hl).gb");
+  MMU ram;
+  ram.loadROM("./TestROMS/01-special.gb");
+
+  CPU gb(ram);
 
   SDL_Window *win;
   SDL_Renderer *rend;
@@ -86,20 +88,23 @@ int main() {
       }
     }
 
-    if (!step) {
-      gb.execute();
-      update_ly_fake(gb.ram);
-      if (!b) {
-
-        SDL_Delay(1);
-      }
-    } else {
-      if (execute) {
-        gb.execute();
-        update_ly_fake(gb.ram);
-        execute = false;
-      }
-    }
+    // if (!step) {
+    //   gb.execute();
+    //   update_ly_fake(gb.ram);
+    //   if (!b) {
+    //
+    //     SDL_Delay(1);
+    //   }
+    // } else {
+    //   if (execute) {
+    //     gb.execute();
+    //     update_ly_fake(gb.ram);
+    //     execute = false;
+    //   }
+    // }
+    //
+    gb.execute();
+    update_ly_fake(gb.ram);
 
     SDL_SetRenderDrawColor(rend, 0x0, 0x0, 0x0, 0xF);
     SDL_RenderClear(rend);

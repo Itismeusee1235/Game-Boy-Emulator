@@ -1,35 +1,44 @@
-#include "./CPU/cpu.hpp"
-#include <bits/stdc++.h>
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
+#include "./GUI.hpp"
+const int WIDTH = 144;
+const int HEIGHT = 60;
 
-int main() {
-  CPU gb;
-  char *tests[] = {"./TestROMS/01-special.gb",
-                   "./TestROMS/02-interrupts.gb",
-                   "./TestROMS/03-op sp,hl.gb",
-                   "./TestROMS/04-op r,imm.gb",
-                   "./TestROMS/05-op rp.gb",
-                   "./TestROMS/06-ld r,r.gb",
-                   "./TestROMS/07-jr,jp,call,ret,rst.gb",
-                   "./TestROMS/08-misc instrs.gb",
-                   "./TestROMS/09-op r,r.gb",
-                   "./TestROMS/10-bit ops.gb",
-                   "./TestROMS/11-op a,(hl).gb"};
+void generate(uint8_t* pixels)
+{
+  std::srand(std::time(nullptr));
 
-  gb.ram.loadROM(tests[5]);
-  uint8_t byte = gb.ram.readByte(0xFF0F);
-  byte = (byte & (~1)) | 1;
-  gb.ram.writeByte(0xFF0F, byte);
-  byte = gb.ram.readByte(0xFFFF);
-  byte = (byte & (~1)) | 1;
-  gb.ram.writeByte(0xFFFF, byte);
-  while (true) {
-    gb.execute();
-    gb.print_reg();
-    // if (gb.ram.readByte(gb.get_reg16(-1)) == 0x98) {
-    //   gb.execute();
-    //   gb.print_reg();
-    //   break;
-    // }
+  // Generate random pixel art
+  for (int y = 0; y < HEIGHT; y++) {
+    for (int x = 0; x < WIDTH; x++) {
+      pixels[y * WIDTH + x] = std::rand() % 4; // 0 to 3
+    }
   }
-  return -1;
+}
+
+int main()
+{
+  GUI test;
+  uint8_t pixels[HEIGHT][WIDTH];
+
+  if (test.Init("Test", WIDTH, HEIGHT, 4) < 0) {
+    return -1;
+  }
+
+  generate(&pixels[0][0]);
+  int c = 0;
+
+  Inputs inp;
+  while (!inp.exit) {
+    if (c >= pow(10, 2)) {
+      c = 0;
+      generate(&pixels[0][0]);
+    }
+    test.pollEvents(inp);
+    test.Draw(&pixels[0][0], 100 * 100);
+    c++;
+  }
+
+  return 0;
 }

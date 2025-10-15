@@ -5,7 +5,7 @@ using namespace std;
 
 MMU::MMU() { memset(memory, 0, 0xFFFF * sizeof(uint8_t)); }
 
-bool MMU::loadROM(char *filename) {
+bool MMU::loadROM(const char *filename) {
   std::ifstream file;
   size_t size = 0;
   file.open(filename, ios::in | ios::binary);

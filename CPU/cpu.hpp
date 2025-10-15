@@ -111,10 +111,10 @@ class CPU {
        0, 0, 0, 0, 0,  0, 0,  0, 0, 0, 0,  0, 0,  0}};
 
 public:
-  MMU ram;
+  MMU &ram;
 
 public:
-  CPU();
+  CPU(MMU &ram);
 
   void print_reg();
   uint16_t get_reg16(int index);
