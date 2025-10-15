@@ -38,12 +38,13 @@ class PPU {
     OAMScan = 2,
     PixelTransfer = 3 };
   Mode mode = OAMScan;
+  int tcyclesCount = 0; // Stores the number of tcycles to run
   int modeClock = 0; // counts dots
 
-  array<SpriteEntry, 40> sprites {};
+  array<SpriteEntry, 10> sprites {}; //  Number of sprites to display
 
   // Registers
-  struct LCDC {
+  struct {
     uint8_t raw = 0x91;
     int bgwinEnable() { return (raw & 0x01); };
     int spriteEnable() { return (raw & 0x02); };
@@ -53,9 +54,9 @@ class PPU {
     int winEnable() { return (raw & 0x20); };
     int winTileMap() { return (raw & 0x40); };
     int displayEnable() { return (raw & 0x80); };
-  };
+  } LCDC;
 
-  struct STAT {
+  struct {
     uint8_t raw = 0x85;
     int ppuMode() { return (raw & 0x03); }
     int coincidence() { return (raw & 0x04); }
@@ -63,14 +64,18 @@ class PPU {
     int mode1Interrupt() { return (raw & 0x10); }
     int mode2Interrupt() { return (raw & 0x20); }
     int lcylyInterrupt() { return (raw & 0x40); }
-  };
+  } STAT;
 
-  uint8_t SCY = 0, SCX = 0;
+  int LY = -1;
+  uint8_t SCY = 0, SCX = 0; // LY and LX
   uint8_t LYC = 0;
   uint8_t BGP = 0xFC;
   uint8_t OBP0 = 0xFF, OBP1 = 0xFF;
   uint8_t WY = 0, WX = 0;
   uint8_t DMA = 0;
+
+  int OAMindex = 0; // index of the sprite it is checking
+  int spriteCount;
 
   // internal helpers
   void enterMode(Mode m);
