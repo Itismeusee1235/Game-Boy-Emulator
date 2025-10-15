@@ -20,7 +20,7 @@ class PPU {
   function<void(int)> requestInterrupt;
 
   uint8_t readIO(uint16_t addr);
-  void writeIO(uint16_t addr, uint8_t value);
+  void writeIO(uint16_t addr, uint16_t value);
 
   void step(int tcycles);
 
