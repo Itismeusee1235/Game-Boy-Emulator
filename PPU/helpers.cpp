@@ -1,5 +1,14 @@
 #include "ppu.hpp"
 
+void PPU::triggerLYCCompare() {
+    bool match = (LY == LYC);
+    uint8_t stat_interrupt;
+    if (match) stat_interrupt = (STAT.raw | 0x04);
+    else stat_interrupt = STAT.coincidence();
+    if (match && (STAT.raw & (1 << 6)) && requestInterrupt)
+        requestInterrupt(1); // LYC=LY STAT interrupt
+}
+
 void PPU::enterMode(Mode m) {
 
     uint8_t stat_interrupt = (STAT.ppuMode() | static_cast<uint8_t>(m));
@@ -43,6 +52,9 @@ void PPU::enterMode(Mode m) {
     } else {
         printf("EnterMode Error: trigger or requestInterrupt returned false");
     }
+
+
+    PPU::triggerLYCCompare();
 }
 
 
@@ -66,7 +78,7 @@ uint8_t PPU::readIO(uint16_t addr) {
 void PPU::writeIO(uint16_t addr, uint16_t val) {
     switch(addr) {
         case 0xFF40: LCDC.raw = val; break;
-        case 0xFF41: STAT =  break; // dont exactly know how to implement this
+        // case 0xFF41: STAT =  break; // dont exactly know how to implement this
         case 0xFF42: SCY = val; break;
         case 0xFF43: SCX = val; break;
         case 0xFF44: LY = 0; break; // writing resets LY
@@ -80,3 +92,30 @@ void PPU::writeIO(uint16_t addr, uint16_t val) {
         default: break;
     }
 }
+
+uint8_t PPU::vramRead(uint16_t addr) {
+    if (addr < 0x8000 || addr > 0x9FFF) return 0xFF;
+    uint8_t output = ram.readByte(addr);
+    return output;
+}
+
+void PPU::vramWrite(uint16_t addr, uint8_t val) {
+    if (addr < 0x8000 || addr > 0x9FFF) return;
+    ram.writeByte(addr, val);
+}
+
+void PPU::reset() {
+    mode = OAMScan;
+    modeClock = 0;
+    LY = 0;
+
+    LCDC.raw = 0x91;
+    STAT.raw = 0x85;
+    SCY = SCX = 0;
+    LYC = 0;
+    BGP = 0xFC;
+    OBP0 = OBP1 = 0xFF;
+    WY = WX = 0;
+    DMA = 0;
+}
+

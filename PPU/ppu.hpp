@@ -66,7 +66,7 @@ class PPU {
     int lcylyInterrupt() { return (raw & 0x40); }
   } STAT;
 
-  int LY = -1;
+  int LY = 0;
   uint8_t SCY = 0, SCX = 0; // LY and LX
   uint8_t LYC = 0;
   uint8_t BGP = 0xFC;
@@ -81,14 +81,11 @@ class PPU {
   void enterMode(Mode m);
   void updateSTATMode(); // set STAT mode bits, trigger STAT interrupt if configured
   void doVBlank(); // handle vblank timing & interrupt
+  void triggerLYCCompare(); // compares the value of the lyc and ly registers
 
   // memory helpers
-  uint8_t vramRead(uint16_t addr) const;
+  uint8_t vramRead(uint16_t addr);
   void vramWrite(uint16_t addr, uint8_t val);
-  uint8_t oamRead(uint16_t addr) const;
-  void oamWrite(uint16_t addr, uint8_t val);
-  void readRegisters();
-  void writeToRegister(int reg, uint8_t value);
 
   // utilities
   void performDMA(uint8_t highByte); // OAM DMA (copy from XX00..XX9F into OAM)
