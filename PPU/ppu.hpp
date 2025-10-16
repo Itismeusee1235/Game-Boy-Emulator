@@ -20,7 +20,7 @@ class PPU {
   function<void(int)> requestInterrupt;
 
   uint8_t readIO(uint16_t addr);
-  void writeIO(uint16_t addr, uint8_t value);
+  void writeIO(uint16_t addr, uint16_t value);
 
   void step(int tcycles);
 
@@ -43,7 +43,7 @@ class PPU {
   array<SpriteEntry, 40> sprites {};
 
   // Registers
-  struct LCDC {
+  struct {
     uint8_t raw = 0x91;
     int bgwinEnable() { return (raw & 0x01); };
     int spriteEnable() { return (raw & 0x02); };
@@ -53,9 +53,9 @@ class PPU {
     int winEnable() { return (raw & 0x20); };
     int winTileMap() { return (raw & 0x40); };
     int displayEnable() { return (raw & 0x80); };
-  };
+  } LCDC;
 
-  struct STAT {
+  struct {
     uint8_t raw = 0x85;
     int ppuMode() { return (raw & 0x03); }
     int coincidence() { return (raw & 0x04); }
@@ -63,7 +63,7 @@ class PPU {
     int mode1Interrupt() { return (raw & 0x10); }
     int mode2Interrupt() { return (raw & 0x20); }
     int lcylyInterrupt() { return (raw & 0x40); }
-  };
+  } STAT;
 
   uint8_t SCY = 0, SCX = 0;
   uint8_t LYC = 0;
