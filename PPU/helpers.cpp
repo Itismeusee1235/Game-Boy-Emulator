@@ -119,3 +119,48 @@ void PPU::reset() {
     DMA = 0;
 }
 
+void PPU::doPixelTransfer() {
+    uint8_t y = LY;
+    uint8_t scy = SCY;
+    uint8_t scx = SCX;
+    uint8_t wx = WX - 7;
+    uint8_t wy = WY;
+
+    bool useWindow = (LCDC.winEnable()) && (y >= wy);
+    uint16_t tileMapBase = (LCDC.bgTileMap()) ? 0x9C00 : 0x9800;
+    uint16_t tileDataBase = (LCDC.tileData()) ? 0x8000 : 0x8800;
+
+    for (int x = 0; x < 160; x++) {
+        uint8_t bgX, bgY;
+        if (useWindow && x >= wx) {
+            bgX = x - wx;
+            bgY = y - wy;
+            tileMapBase = (LCDC.winTileMap()) ? 0x9C00 : 0x9800;
+        } else {
+            bgX = scx + x;
+            bgY = scy + y;
+        }
+
+        uint16_t tileMapAddr = tileMapBase + ((bgY / 8) * 32) + (bgX / 8);
+        int8_t tileIndex = ram.readByte(tileMapAddr);
+
+        uint16_t tileAddr = (tileDataBase == 0x8000)
+            ? tileDataBase + (tileIndex * 16)
+            : tileDataBase + ((int8_t)tileIndex + 128) * 16;
+
+        uint8_t line = bgY % 8;
+        uint8_t data1 = ram.readByte(tileAddr + (line * 2));
+        uint8_t data2 = ram.readByte(tileAddr + (line * 2) + 1);
+
+        int colorBit = 7 - (bgX % 8);
+        uint8_t colorId = ((data2 >> colorBit) & 1) << 1 | ((data1 >> colorBit) & 1);
+
+        uint8_t palette = BGP;
+        uint8_t shade = (palette >> (colorId * 2)) & 0x03;
+
+        static const uint8_t shades[4] = {255, 192, 96, 0};
+        framebuffer[y][x] = shades[shade];
+    }
+}
+
+

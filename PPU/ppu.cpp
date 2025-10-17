@@ -2,7 +2,10 @@
 
 void PPU::step(int tcycles)
 {
+  if (!(LCDC.displayEnable())) return; // LCD Disabled
+
   this->tcyclesCount += tcycles;
+  modeClock += tcycles;
 
   while (tcyclesCount > 0) {
 
@@ -68,7 +71,11 @@ void PPU::step(int tcycles)
       break;
     }
     case PixelTransfer: {
-      enterMode(HBlank);
+      if (modeClock >= 172) {
+        doPixelTransfer();
+        enterMode(HBlank);
+        modeClock -= 172;
+      }
       break;
     }
     }
