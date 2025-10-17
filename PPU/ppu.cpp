@@ -8,22 +8,38 @@ void PPU::step(int tcycles)
   modeClock += tcycles;
 
   while (tcyclesCount > 0) {
+
     switch (mode) {
     case HBlank: {
-      if (LY >= 143) {
-        enterMode(VBlank);
-      } else {
-        enterMode(OAMScan);
+
+      modeClock += tcycles + tcyclesCount;
+      this->tcyclesCount = 0;
+
+      if (modeClock >= 376) {
+        if (LY >= 143) {
+          enterMode(VBlank);
+        } else {
+          enterMode(OAMScan);
+        }
+        LY++;
       }
       break;
     }
     case VBlank: {
-      if (LY < 153) {
-        enterMode(VBlank);
-      } else {
-        enterMode(OAMScan);
+
+      modeClock += tcycles + tcyclesCount;
+      this->tcyclesCount = 0;
+
+      if (modeClock > 456) {
+        if (LY < 153) {
+          LY++;
+          enterMode(VBlank);
+        } else {
+          LY = 0;
+          enterMode(OAMScan);
+        }
+        break;
       }
-      break;
     }
     case OAMScan: {
 

@@ -76,7 +76,7 @@ class PPU {
   uint8_t DMA = 0;
 
   int OAMindex = 0; // index of the sprite it is checking
-  int spriteCount;
+  int spriteCount = 0; // number of sprites on current scanline
 
   // internal helpers
   void enterMode(Mode m);
