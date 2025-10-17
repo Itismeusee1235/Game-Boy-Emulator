@@ -31,6 +31,7 @@ class PPU {
   private:
   // Ram object
   MMU ram;
+  uint8_t framebuffer[144][160]; // color value of each pixel
 
   // different modes that the ppo works on
   enum Mode { HBlank = 0,
@@ -89,6 +90,7 @@ class PPU {
 
   // utilities
   void performDMA(uint8_t highByte); // OAM DMA (copy from XX00..XX9F into OAM)
+  void doPixelTransfer();
 };
 
 #endif
